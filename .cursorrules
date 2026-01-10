@@ -1,0 +1,43 @@
+# Cursor Rules for Spetalier Project
+
+## File Organization
+- Use `./.temp/cursor/` directory for temporary testing files
+- Never use root `.temp/` directory for test files
+- Keep test files organized and separate from production temp files
+- **ALWAYS** do adhoc cursor work in `./.temp/cursor/` directory
+- Never create temporary files in project root
+
+## Code Standards
+- Follow lean, maintainable, and extensible architecture principles
+- Use comprehensive testing for all functionality
+- Fix bugs completely before moving to new features
+- Document all public methods with proper docstrings
+- Use type hints throughout the codebase
+
+## Testing Standards
+- **ALWAYS run tests after making major changes** - Never skip test runs
+- **ALWAYS add new tests for new functionality** - Every new feature needs tests
+- **ALWAYS align/update existing tests when refactoring** - Keep tests in sync with code changes
+- Create comprehensive test cases for bug reproduction
+- Test edge cases and error conditions
+- Verify fixes with multiple test scenarios
+- Clean up test files after completion
+- Keep tests aligned with code changes - if you change code, update tests accordingly
+
+## Bug Fixing Process
+1. Reproduce the bug with a minimal test case
+2. Identify the root cause through systematic analysis
+3. Implement a comprehensive fix
+4. Test the fix thoroughly
+5. Verify no regressions are introduced
+
+## No Workarounds Policy
+- **NEVER** create workarounds, bypasses, or temporary solutions
+- **ALWAYS** fix the root cause properly
+- **ALWAYS** make things work correctly, not "good enough"
+- If dependencies are missing, install them properly
+- If tests fail, fix the tests and code properly
+- If imports fail, fix the import structure properly
+- Do not create standalone test files to bypass conftest
+- Do not skip tests or mark them as expected failures
+- Do not use try/except to hide real problems

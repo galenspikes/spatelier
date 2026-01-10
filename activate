@@ -1,0 +1,15 @@
+#!/bin/bash
+# Quick activation script - just run: source activate
+# Or add to your shell: alias spatelier-env="cd /Users/galenspikes/repos/spatelier && source venv/bin/activate"
+
+cd "$(dirname "${BASH_SOURCE[0]}")"
+source venv/bin/activate
+echo "✅ Spatelier environment activated!"
+echo "   Python: $(python --version)"
+echo "   Location: $(which python)"
+echo ""
+echo "Available commands:"
+echo "  - spatelier --help"
+echo "  - make test"
+echo "  - make build-release"
+echo ""
