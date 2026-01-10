@@ -2,7 +2,7 @@
 
 You're absolutely right! The point is to install it once and use it from anywhere. Here are your options:
 
-## Option 1: pipx (Recommended) ⭐
+## Option 1: pipx (Recommended)
 
 **pipx** installs Python CLI tools in isolated environments but makes them globally available. Perfect for this!
 
@@ -18,7 +18,7 @@ cd /Users/galenspikes/repos/spatelier
 pipx install -e .
 ```
 
-Now `spatelier` works from anywhere! 🎉
+Now `spatelier` works from anywhere!
 
 ### Update Spatelier
 ```bash
@@ -68,10 +68,10 @@ And it works globally!
 ## Recommendation
 
 **Use pipx** - it's designed exactly for this use case:
-- ✅ Isolated environment (no conflicts)
-- ✅ Global command availability
-- ✅ Easy updates
-- ✅ No venv management needed
+- Isolated environment (no conflicts)
+- Global command availability
+- Easy updates
+- No venv management needed
 
 ## Quick Setup with pipx
 

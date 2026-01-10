@@ -1,13 +1,13 @@
 # OAuth Credentials JSON Schema
 
-## 📋 Expected File Structure
+## Expected File Structure
 
 The OAuth credentials file should be named:
 ```
 config/youtube_oauth_credentials.json
 ```
 
-## 🔍 JSON Schema
+## JSON Schema
 
 The file should contain a JSON object with this structure:
 
@@ -27,7 +27,7 @@ The file should contain a JSON object with this structure:
 }
 ```
 
-## 🔑 Required Fields
+## Required Fields
 
 - **`client_id`**: Your OAuth 2.0 Client ID from Google Cloud Console
 - **`client_secret`**: Your OAuth 2.0 Client Secret from Google Cloud Console
@@ -37,14 +37,14 @@ The file should contain a JSON object with this structure:
 - **`auth_provider_x509_cert_url`**: Certificate URL (usually the same)
 - **`redirect_uris`**: Array with "http://localhost" (for local authentication)
 
-## 📁 File Location
+## File Location
 
 Save the file as:
 ```
 config/youtube_oauth_credentials.json
 ```
 
-## ✅ Validation
+## Validation
 
 The system will check:
 1. **File exists** at the correct path
@@ -52,7 +52,7 @@ The system will check:
 3. **Required fields** are present
 4. **Client ID and Secret** are not empty
 
-## 🚨 Common Issues
+## Common Issues
 
 - **Wrong file name**: Must be exactly `youtube_oauth_credentials.json`
 - **Wrong location**: Must be in `config/` directory
@@ -60,7 +60,7 @@ The system will check:
 - **Missing fields**: Ensure all required fields are present
 - **Empty values**: Client ID and Secret must have actual values
 
-## 🎯 What You Should See
+## What You Should See
 
 When you download from Google Cloud Console, you should get a file that looks like:
 
@@ -80,7 +80,7 @@ When you download from Google Cloud Console, you should get a file that looks li
 }
 ```
 
-## 🔧 Testing
+## Testing
 
 After saving the file, run:
 ```bash

@@ -45,7 +45,7 @@ When you first run video download with OAuth:
 spt video download "your video url"
 ```
 
-## 🎯 Personal Results
+## Personal Results
 With OAuth, you'll get:
 - **Personalized recommendations** based on your watch history
 - **Better search results** tailored to your interests

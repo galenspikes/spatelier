@@ -4,14 +4,14 @@ A personal tool library for video and music file handling, built with modern Pyt
 
 ## Features
 
-- **🎥 Video Processing**: Download, transcribe, and process videos with automatic subtitle embedding
-- **🎵 Audio Processing**: Extract, convert, and normalize audio from videos
-- **📊 Analytics**: Track usage and generate insights from your media library
-- **🗄️ Database Management**: SQLite + MongoDB for structured and unstructured data
-- **🔄 Batch Operations**: Process multiple files with intelligent resume logic
-- **🌐 NAS Support**: Smart handling of Network Attached Storage with local processing
-- **🧪 Comprehensive Testing**: Full test suite with unit, integration, and performance tests
-- **📝 Modern CLI**: Beautiful, type-safe command-line interface with Rich output
+- **Video Processing**: Download, transcribe, and process videos with automatic subtitle embedding
+- **Audio Processing**: Extract, convert, and normalize audio from videos
+- **Analytics**: Track usage and generate insights from your media library
+- **Database Management**: SQLite + MongoDB for structured and unstructured data
+- **Batch Operations**: Process multiple files with intelligent resume logic
+- **NAS Support**: Smart handling of Network Attached Storage with local processing
+- **Comprehensive Testing**: Full test suite with unit, integration, and performance tests
+- **Modern CLI**: Beautiful, type-safe command-line interface with Rich output
 
 ## Architecture
 
@@ -29,7 +29,7 @@ spatelier/
 
 ## Installation
 
-### Global Installation (Recommended) ⭐
+### Global Installation (Recommended)
 
 **Want to use `spatelier` from anywhere? Use pipx:**
 
