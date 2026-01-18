@@ -11,7 +11,7 @@ authors = [
 ]
 readme = "README.md"
 license = {text = "MIT"}
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 keywords = [
     "video",
     "audio",
@@ -28,7 +28,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -100,7 +99,20 @@ web = [
 
 # All optional features
 all = [
-    "spatelier[youtube-api,analytics,transcription,mongodb,web]",
+    "google-api-python-client>=2.0.0",
+    "google-auth-httplib2>=0.1.0",
+    "google-auth-oauthlib>=1.0.0",
+    "pandas>=2.0.0",
+    "matplotlib>=3.7.0",
+    "seaborn>=0.12.0",
+    "plotly>=5.15.0",
+    "faster-whisper>=0.9.0",
+    "openai-whisper>=20231117",
+    "pymongo>=4.5.0",
+    "motor>=3.3.0",
+    "beautifulsoup4>=4.12.0",
+    "playwright>=1.40.0",
+    "requests>=2.31.0",
 ]
 
 # Development dependencies
@@ -113,14 +125,16 @@ dev = [
     "flake8>=6.0.0",
     "mypy>=1.0.0",
     "pre-commit>=3.0.0",
+    "psutil>=7.2.1",
+    "alembic>=1.18.1",
 ]
 
 [project.scripts]
-spatelier = "cli.app:main_entry"
+spatelier = "spatelier.cli.app:main_entry"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["cli*", "core*", "database*", "modules*", "analytics*", "utils*"]
+include = ["spatelier*", "cli*", "core*", "database*", "modules*", "analytics*", "utils*"]
 
 [tool.black]
 line-length = 88
@@ -145,8 +159,12 @@ profile = "black"
 multi_line_output = 3
 line_length = 88
 
+[tool.flake8]
+max-line-length = 88
+exclude = [".venv", ".data", ".temp", "build", "dist"]
+
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
@@ -159,6 +177,26 @@ warn_unused_ignores = true
 warn_no_return = true
 warn_unreachable = true
 strict_equality = true
+explicit_package_bases = true
+namespace_packages = true
+mypy_path = "."
+ignore_missing_imports = true
+disable_error_code = ["import-untyped"]
+exclude = '(\.venv/|\.data/|\.temp/|/site-packages/|^build/|^dist/)'
+ignore_errors = true
+files = [
+    "analytics",
+    "bin",
+    "cli",
+    "core",
+    "database",
+    "migrations",
+    "modules",
+    "spatelier",
+    "tests",
+    "utils",
+    "setup.py",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -166,3 +204,7 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
+
+[tool.poetry.group.dev.dependencies]
+psutil = "^7.2.1"
+alembic = "^1.18.1"

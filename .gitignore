@@ -139,6 +139,12 @@ config.yaml
 # Cursor temporary files
 .temp/
 
+# Local vault (unversioned notes)
+.vault/
+
+# Local data directory (repo-scoped)
+.data/
+
 # macOS
 .DS_Store
 .DS_Store?

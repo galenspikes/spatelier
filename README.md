@@ -97,29 +97,20 @@ spatelier --help
 # Video processing
 spatelier video download <url>                    # Download video
 spatelier video download-enhanced <url>           # Download with transcription
-spatelier video download-playlist <url>          # Download entire playlist
+spatelier video download-playlist <url>          # Download entire playlist (no transcription)
 spatelier video embed-subtitles <video>          # Embed subtitles
 spatelier video convert <input> <output>         # Convert format
-spatelier video extract-audio <video>             # Extract audio
 spatelier video info <video>                      # Show video info
 
 # Audio processing
 spatelier audio convert <input> <output>          # Convert audio format
-spatelier audio normalize <input>                 # Normalize audio levels
-spatelier audio trim <input> <start> <end>       # Trim audio
 spatelier audio info <audio>                      # Show audio info
 
 # Batch operations
-spatelier batch organize <directory>              # Organize files by type/date
-spatelier batch cleanup <directory>               # Clean up old files
 
 # Analytics
 spatelier analytics report                        # Generate usage reports
-spatelier analytics wordcloud                     # Generate word clouds
 
-# Database management
-spatelier database migrate                        # Run database migrations
-spatelier database reset                          # Reset database
 ```
 
 ## Development
