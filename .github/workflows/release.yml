@@ -70,8 +70,8 @@ jobs:
           generate_release_notes: true
           # token defaults to github.token which has the permissions we set
 
-      - name: Publish to PyPI (if not pre-release)
-        if: "!contains(github.ref, 'alpha') && !contains(github.ref, 'beta') && !contains(github.ref, 'rc')"
+      - name: Publish to PyPI (if not pre-release and token is set)
+        if: "!contains(github.ref, 'alpha') && !contains(github.ref, 'beta') && !contains(github.ref, 'rc') && secrets.PYPI_API_TOKEN != ''"
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
