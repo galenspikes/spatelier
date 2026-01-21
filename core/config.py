@@ -22,13 +22,13 @@ def _find_repo_root() -> Optional[Path]:
 
 
 def get_default_data_dir() -> Path:
-    env_dir = os.getenv("SPATELIER_DATA_DIR")
-    if env_dir:
-        return Path(env_dir)
+    """Get default data directory - always in repo root."""
     repo_root = _find_repo_root()
-    if repo_root:
-        return repo_root / ".data"
-    return Path.home() / ".config" / "spatelier"
+    if not repo_root:
+        raise RuntimeError(
+            "Cannot find repository root. Spatelier must be run from within the repository."
+        )
+    return repo_root / ".data"
 
 
 class VideoConfig(BaseModel):

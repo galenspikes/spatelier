@@ -694,7 +694,10 @@ def extract_audio_from_url(
 
     # Set default output directory
     if output_dir is None:
-        output_dir = Path.cwd() / "audio_extracts"
+        from core.config import get_default_data_dir
+
+        repo_root = get_default_data_dir().parent
+        output_dir = repo_root / "audio_extracts"
 
     try:
         result = service.extract_audio_from_url(

@@ -1,0 +1,151 @@
+#!/bin/bash
+# Release script for Spatelier
+# Automates the release process including Homebrew formula updates
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Get version from pyproject.toml
+VERSION=$(grep -E '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+TAG="v${VERSION}"
+
+if [ -z "$VERSION" ]; then
+    echo -e "${RED}Error: Could not find version in pyproject.toml${NC}"
+    exit 1
+fi
+
+# Setup logging
+LOG_DIR=".data/logs"
+mkdir -p "$LOG_DIR"
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+LOG_FILE="${LOG_DIR}/release_${TAG}_${TIMESTAMP}.log"
+
+# Function to log and echo
+log_and_echo() {
+    echo "$1" | tee -a "$LOG_FILE"
+}
+
+# Function to log without colors (for file)
+log_plain() {
+    echo "$1" >> "$LOG_FILE"
+}
+
+# Start logging
+log_plain "=========================================="
+log_plain "Release Process Started: $(date)"
+log_plain "Version: ${TAG}"
+log_plain "Branch: $(git branch --show-current)"
+log_plain "Commit: $(git rev-parse HEAD)"
+log_plain "=========================================="
+log_and_echo ""
+log_and_echo -e "${GREEN}🚀 Starting release process for ${TAG}${NC}"
+log_and_echo -e "${GREEN}📝 Logging to: ${LOG_FILE}${NC}"
+log_and_echo ""
+
+# Check if tag already exists
+if git rev-parse "$TAG" >/dev/null 2>&1; then
+    log_and_echo -e "${RED}Error: Tag ${TAG} already exists${NC}"
+    log_plain "ERROR: Tag already exists"
+    exit 1
+fi
+
+# Check if we're on main branch
+CURRENT_BRANCH=$(git branch --show-current)
+if [ "$CURRENT_BRANCH" != "main" ]; then
+    log_and_echo -e "${RED}Error: Must be on main branch to release (currently on ${CURRENT_BRANCH})${NC}"
+    log_plain "ERROR: Not on main branch"
+    log_and_echo ""
+    log_and_echo "Release workflow:"
+    log_and_echo "  1. Merge your feature branch to main"
+    log_and_echo "  2. Switch to main: git checkout main"
+    log_and_echo "  3. Pull latest: git pull"
+    log_and_echo "  4. Run release script: make release"
+    exit 1
+fi
+
+# Check for uncommitted changes
+if ! git diff-index --quiet HEAD --; then
+    log_and_echo -e "${RED}Error: You have uncommitted changes. Commit or stash them first.${NC}"
+    log_plain "ERROR: Uncommitted changes detected"
+    git status --short >> "$LOG_FILE"
+    exit 1
+fi
+
+# Verify CHANGELOG has been updated
+if ! grep -q "## \[${VERSION}\]" CHANGELOG.md; then
+    log_and_echo -e "${YELLOW}Warning: CHANGELOG.md doesn't appear to have entry for ${VERSION}${NC}"
+    log_plain "WARNING: CHANGELOG not updated"
+    read -p "Continue anyway? (y/N) " -n 1 -r
+    echo
+    log_plain "User response: $REPLY"
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+fi
+
+# Run tests
+log_and_echo -e "${GREEN}🧪 Running tests...${NC}"
+log_plain "Running pytest..."
+if command -v pytest &> /dev/null; then
+    pytest 2>&1 | tee -a "$LOG_FILE"
+    TEST_EXIT_CODE=${PIPESTATUS[0]}
+    if [ $TEST_EXIT_CODE -ne 0 ]; then
+        log_and_echo -e "${RED}Error: Tests failed. Fix tests before releasing.${NC}"
+        log_plain "ERROR: Tests failed with exit code $TEST_EXIT_CODE"
+        exit 1
+    fi
+    log_and_echo -e "${GREEN}✅ All tests passed${NC}"
+    log_plain "SUCCESS: All tests passed"
+else
+    log_and_echo -e "${YELLOW}Warning: pytest not found. Skipping tests.${NC}"
+    log_plain "WARNING: pytest not found"
+    log_and_echo "   Make sure tests pass before releasing!"
+    read -p "Continue anyway? (y/N) " -n 1 -r
+    echo
+    log_plain "User response: $REPLY"
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+fi
+
+log_and_echo ""
+log_and_echo -e "${GREEN}✅ Pre-release checks passed${NC}"
+log_plain "SUCCESS: Pre-release checks passed"
+log_and_echo ""
+
+# Create and push tag
+log_and_echo -e "${GREEN}📝 Creating tag ${TAG}...${NC}"
+log_plain "Creating git tag: ${TAG}"
+git tag -a "$TAG" -m "Release ${TAG}" 2>&1 | tee -a "$LOG_FILE"
+
+log_and_echo -e "${GREEN}📤 Pushing tag to origin...${NC}"
+log_plain "Pushing tag to origin"
+git push origin "$TAG" 2>&1 | tee -a "$LOG_FILE"
+
+log_and_echo ""
+log_and_echo -e "${GREEN}✅ Tag ${TAG} pushed successfully!${NC}"
+log_plain "SUCCESS: Tag pushed successfully"
+log_and_echo ""
+log_and_echo -e "${YELLOW}⏳ Waiting for GitHub Actions to create release...${NC}"
+log_and_echo "   Check progress at: https://github.com/galenspikes/spatelier/actions"
+log_and_echo ""
+log_and_echo "Once the release is created, run:"
+log_and_echo -e "  ${GREEN}./scripts/update_homebrew.sh ${TAG}${NC}"
+log_and_echo ""
+log_and_echo "Or manually update Formula/spatelier.rb with:"
+log_and_echo "  1. URL: https://github.com/galenspikes/spatelier/archive/refs/tags/${TAG}.tar.gz"
+log_and_echo "  2. SHA256: (get from release tarball)"
+
+# Final log entry
+log_plain "=========================================="
+log_plain "Release Process Completed: $(date)"
+log_plain "Tag: ${TAG}"
+log_plain "Log file: ${LOG_FILE}"
+log_plain "=========================================="
+log_and_echo ""
+log_and_echo -e "${GREEN}📝 Full log saved to: ${LOG_FILE}${NC}"

@@ -94,6 +94,17 @@ build-executable: ## Build standalone executable (requires pyinstaller and venv 
 
 check: format-check lint test ## Run all checks
 
+release: ## Create a new release (updates version, creates tag, triggers GitHub Actions)
+	@bash scripts/release.sh
+
+update-homebrew: ## Update Homebrew formula with latest release SHA256 (usage: make update-homebrew TAG=v0.1.0)
+	@if [ -z "$(TAG)" ]; then \
+		echo "❌ Error: TAG required"; \
+		echo "Usage: make update-homebrew TAG=v0.1.0"; \
+		exit 1; \
+	fi
+	@bash scripts/update_homebrew.sh $(TAG)
+
 dev-setup: install-dev ## Set up development environment
 	@echo "Development environment set up successfully!"
 	@echo "Run 'make test' to run tests"

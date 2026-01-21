@@ -1,6 +1,12 @@
 [flake8]
 max-line-length = 88
-ignore = E203,E501,F401,F811,F841,F541,E722,W291
+# Ignore rules that conflict with black formatter
+# E203: whitespace before ':' (black handles this)
+# E231: missing whitespace after ':' (false positive for format specifiers like :.1f)
+# E501: line too long (black handles line length)
+# W503: line break before binary operator (black prefers this style)
+# W291: trailing whitespace (black handles this)
+ignore = E203,E231,E501,W503,W291,F401,F811,F841,F541,E722
 exclude =
     venv,
     .venv,

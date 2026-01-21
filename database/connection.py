@@ -82,6 +82,75 @@ class DatabaseManager:
         # Create tables
         Base.metadata.create_all(bind=self.sqlite_engine)
 
+        # Create FTS5 virtual table and triggers for transcriptions (if not exists)
+        from sqlalchemy import text
+
+        with self.sqlite_engine.connect() as conn:
+            # Drop existing FTS5 table and triggers if they exist (to allow overwrite)
+            conn.execute(text("DROP TABLE IF EXISTS transcriptions_fts"))
+            conn.execute(text("DROP TRIGGER IF EXISTS transcriptions_ai"))
+            conn.execute(text("DROP TRIGGER IF EXISTS transcriptions_ad"))
+            conn.execute(text("DROP TRIGGER IF EXISTS transcriptions_au"))
+            conn.commit()
+
+            # Create FTS5 virtual table
+            conn.execute(
+                text(
+                    """
+                CREATE VIRTUAL TABLE IF NOT EXISTS transcriptions_fts USING fts5(
+                    full_text, content='transcriptions', content_rowid='id'
+                )
+            """
+                )
+            )
+
+            # Create triggers for automatic FTS5 updates
+            conn.execute(
+                text(
+                    """
+                CREATE TRIGGER IF NOT EXISTS transcriptions_ai AFTER INSERT ON transcriptions BEGIN
+                    INSERT INTO transcriptions_fts(rowid, full_text) VALUES (new.id, new.full_text);
+                END
+            """
+                )
+            )
+
+            conn.execute(
+                text(
+                    """
+                CREATE TRIGGER IF NOT EXISTS transcriptions_ad AFTER DELETE ON transcriptions BEGIN
+                    INSERT INTO transcriptions_fts(transcriptions_fts, rowid, full_text)
+                    VALUES('delete', old.id, old.full_text);
+                END
+            """
+                )
+            )
+
+            conn.execute(
+                text(
+                    """
+                CREATE TRIGGER IF NOT EXISTS transcriptions_au AFTER UPDATE ON transcriptions BEGIN
+                    INSERT INTO transcriptions_fts(transcriptions_fts, rowid, full_text)
+                    VALUES('delete', old.id, old.full_text);
+                    INSERT INTO transcriptions_fts(rowid, full_text) VALUES (new.id, new.full_text);
+                END
+            """
+                )
+            )
+
+            conn.commit()
+
+            # Populate FTS5 table with existing transcriptions
+            conn.execute(
+                text(
+                    """
+                INSERT OR IGNORE INTO transcriptions_fts(rowid, full_text)
+                SELECT id, full_text FROM transcriptions
+            """
+                )
+            )
+            conn.commit()
+
         self.logger.info(f"Connected to SQLite database: {database_path}")
         return self.sqlite_session
 

@@ -29,7 +29,22 @@ spatelier/
 
 ## Installation
 
-### Global Installation (Recommended)
+### Homebrew (Recommended - No pip/venv needed!)
+
+**Install with Homebrew - handles everything automatically:**
+
+```bash
+brew install --build-from-source https://raw.githubusercontent.com/galenspikes/spatelier/main/Formula/spatelier.rb
+```
+
+That's it! `spatelier` is now available system-wide. No pip, no venv, no Python management.
+
+**Update:**
+```bash
+brew upgrade spatelier
+```
+
+### Global Installation with pipx
 
 **Want to use `spatelier` from anywhere? Use pipx:**
 

@@ -66,7 +66,10 @@ class PlaylistService(BaseService):
             if output_path:
                 playlist_dir = Path(output_path) / folder_name
             else:
-                playlist_dir = Path.cwd() / folder_name
+                from core.config import get_default_data_dir
+
+                repo_root = get_default_data_dir().parent
+                playlist_dir = repo_root / "downloads" / folder_name
 
             # Check if output is on NAS and set up temp processing if needed
             is_nas = self._is_nas_path(playlist_dir)

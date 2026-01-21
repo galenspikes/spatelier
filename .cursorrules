@@ -41,3 +41,22 @@
 - Do not create standalone test files to bypass conftest
 - Do not skip tests or mark them as expected failures
 - Do not use try/except to hide real problems
+
+## Release Process
+- **ALWAYS use the release script**: `./scripts/release.sh`
+- **MUST be on main branch** - releases only happen from main
+- Release process:
+  1. Merge feature branch to main
+  2. Switch to main: `git checkout main && git pull`
+  3. Update version in `pyproject.toml`
+  4. Update `CHANGELOG.md` with release notes (format: `## [0.1.0] - YYYY-MM-DD`)
+  5. Commit changes
+  6. Run `./scripts/release.sh` (runs tests, creates tag, pushes to trigger GitHub Actions)
+  7. Wait for GitHub Actions to complete (creates GitHub Release)
+  8. Run `./scripts/update_homebrew.sh v0.1.0` (updates Formula/spatelier.rb with SHA256)
+  9. Commit and push formula update
+- **The release script automatically runs tests** - tests must pass before release
+- Tag format must be `v*.*.*` (e.g., `v0.1.0`, `v1.2.3`) to trigger release workflow
+- Pre-releases (alpha/beta/rc) won't publish to PyPI automatically
+- Homebrew formula URL format: `https://github.com/galenspikes/spatelier/archive/refs/tags/v0.1.0.tar.gz`
+- Homebrew installation: `brew install --build-from-source https://raw.githubusercontent.com/galenspikes/spatelier/main/Formula/spatelier.rb`

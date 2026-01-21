@@ -84,7 +84,10 @@ class VideoDownloadService(BaseService):
             # Determine output path
             output_file = None
             if output_path is None:
-                output_dir = self.config.video.output_dir or Path.cwd()
+                from core.config import get_default_data_dir
+
+                repo_root = get_default_data_dir().parent
+                output_dir = self.config.video.output_dir or (repo_root / "downloads")
             else:
                 output_path = Path(output_path)
                 if output_path.suffix:
