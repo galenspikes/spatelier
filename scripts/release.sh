@@ -25,9 +25,14 @@ mkdir -p "$LOG_DIR"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 LOG_FILE="${LOG_DIR}/release_${TAG}_${TIMESTAMP}.log"
 
-# Function to log and echo
+# Function to log and echo (supports -e flag for colors)
 log_and_echo() {
-    echo "$1" | tee -a "$LOG_FILE"
+    if [ "$1" = "-e" ]; then
+        shift
+        echo -e "$@" | tee -a "$LOG_FILE"
+    else
+        echo "$@" | tee -a "$LOG_FILE"
+    fi
 }
 
 # Function to log without colors (for file)
@@ -91,16 +96,18 @@ fi
 # Run tests
 log_and_echo -e "${GREEN}🧪 Running tests...${NC}"
 log_plain "Running pytest..."
-if command -v pytest &> /dev/null; then
-    pytest 2>&1 | tee -a "$LOG_FILE"
-    TEST_EXIT_CODE=${PIPESTATUS[0]}
-    if [ $TEST_EXIT_CODE -ne 0 ]; then
-        log_and_echo -e "${RED}Error: Tests failed. Fix tests before releasing.${NC}"
-        log_plain "ERROR: Tests failed with exit code $TEST_EXIT_CODE"
-        exit 1
-    fi
-    log_and_echo -e "${GREEN}✅ All tests passed${NC}"
-    log_plain "SUCCESS: All tests passed"
+
+# Try to use venv pytest first, then fall back to system pytest
+PYTEST_CMD=""
+if [ -f "venv/bin/pytest" ]; then
+    PYTEST_CMD="venv/bin/pytest"
+    log_plain "Using venv pytest: $PYTEST_CMD"
+elif [ -n "$VIRTUAL_ENV" ] && command -v pytest &> /dev/null; then
+    PYTEST_CMD="pytest"
+    log_plain "Using pytest from active venv: $VIRTUAL_ENV"
+elif command -v pytest &> /dev/null; then
+    PYTEST_CMD="pytest"
+    log_plain "Using system pytest (WARNING: may not have all dependencies)"
 else
     log_and_echo -e "${YELLOW}Warning: pytest not found. Skipping tests.${NC}"
     log_plain "WARNING: pytest not found"
@@ -111,6 +118,18 @@ else
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
         exit 1
     fi
+fi
+
+if [ -n "$PYTEST_CMD" ]; then
+    $PYTEST_CMD 2>&1 | tee -a "$LOG_FILE"
+    TEST_EXIT_CODE=${PIPESTATUS[0]}
+    if [ $TEST_EXIT_CODE -ne 0 ]; then
+        log_and_echo -e "${RED}Error: Tests failed. Fix tests before releasing.${NC}"
+        log_plain "ERROR: Tests failed with exit code $TEST_EXIT_CODE"
+        exit 1
+    fi
+    log_and_echo -e "${GREEN}✅ All tests passed${NC}"
+    log_plain "SUCCESS: All tests passed"
 fi
 
 log_and_echo ""
