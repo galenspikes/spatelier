@@ -1,4 +1,6 @@
 class Spatelier < Formula
+  include Language::Python::Virtualenv
+
   desc "Personal tool library for video and music file handling"
   homepage "https://github.com/galenspikes/spatelier"
   url "https://github.com/galenspikes/spatelier/archive/refs/tags/v0.2.0.tar.gz"
