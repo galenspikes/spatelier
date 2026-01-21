@@ -6,6 +6,9 @@ on:
       - 'v*.*.*'  # Trigger on version tags like v0.1.0
   workflow_dispatch:  # Allow manual trigger
 
+permissions:
+  contents: write  # Required for creating releases
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -65,7 +68,7 @@ jobs:
         with:
           files: dist/*
           generate_release_notes: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # token defaults to github.token which has the permissions we set
 
       - name: Publish to PyPI (if not pre-release)
         if: "!contains(github.ref, 'alpha') && !contains(github.ref, 'beta') && !contains(github.ref, 'rc')"
