@@ -7,21 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-01-21
+
 ### Added
-- Initial project structure
-- CLI interface with Typer
-- Video download and processing capabilities
-- Audio extraction and conversion
-- Database integration (SQLite + MongoDB)
-- Analytics and reporting features
-- Comprehensive test suite
+- SQLite transcription storage with FTS5 full-text search
+- Homebrew installation support (Formula/spatelier.rb)
+- Automated release script with logging (scripts/release.sh)
+- Homebrew formula update script (scripts/update_homebrew.sh)
+- Release automation in Makefile (make release, make update-homebrew)
+- Comprehensive integration tests for SQLite transcription storage
 
 ### Changed
-- Unified worker implementation (consolidated JobWorker, AutoWorker, DaemonWorker)
-- Merged package updater functionality
-- Simplified service layer architecture
-- Flattened configuration structure
-- Unified transcription service
+- All file system operations now relative to repo directory (no home directory usage)
+- Database storage location fixed to `.data/` in repo root
+- Improved flake8 configuration to work with black formatter
+- Updated cursor rules with release process documentation
+- Enhanced README with Homebrew installation instructions
 
 ## [0.1.0] - TBD
 
@@ -32,5 +33,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Database support
 - Analytics features
 
-[Unreleased]: https://github.com/galenspikes/spatelier/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/galenspikes/spatelier/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/galenspikes/spatelier/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/galenspikes/spatelier/releases/tag/v0.1.0
