@@ -3,8 +3,8 @@ class Spatelier < Formula
 
   desc "Personal tool library for video and music file handling"
   homepage "https://github.com/galenspikes/spatelier"
-  url "https://github.com/galenspikes/spatelier/archive/refs/tags/v0.2.0.tar.gz"
-  sha256 "bfe48124cbb08616cefab217b3e2e7d84852f22d32a758643109035b7bdda6a1" # Update after first release
+  url "https://github.com/galenspikes/spatelier/archive/refs/tags/v0.3.0.tar.gz"
+  sha256 "663639c0ac3a677512bdca0b7d0ad7fdb931b8efbdca43110b41531be793c02a" # Update after first release
   license "MIT"
   head "https://github.com/galenspikes/spatelier.git", branch: "main"
 
@@ -12,6 +12,7 @@ class Spatelier < Formula
   # ffmpeg is required: ffmpeg-python is just a wrapper that calls the system ffmpeg binary
   # Used for video/audio conversion, subtitle embedding, and metadata extraction
   depends_on "ffmpeg"
+  depends_on "deno"  # Required by yt-dlp for YouTube SABR streaming
 
   def install
     python3 = "python3.12"
