@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "spatelier"
-version = "0.2.1"
+version = "0.3.0"
 description = "Personal tool library for video and music file handling"
 authors = [
     {name = "Galen Spikes", email = "galenspikes@gmail.com"}

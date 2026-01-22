@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-01-22
+
+### Added
+- Job duration tracking: jobs now properly track `started_at` and calculate `duration_seconds`
+- Transcription dependencies moved to core: `faster-whisper` and `openai-whisper` are now always installed
+
+### Changed
+- Default transcription model changed from `large` to `small` for faster performance
+- Video download command: transcription now defaults to `False` (use `download-enhanced` for transcription by default)
+- Pre-commit hooks simplified to only black, isort, and mypy (removed flake8 and other checks)
+
+### Fixed
+- Job duration tracking: `started_at` is now set when jobs transition to PROCESSING status
+- Duration calculation: improved to use `created_at` as fallback if `started_at` is not set
+- Job tracking fixed in both `download_service` and `playlist_service`
+
 ## [0.2.1] - 2026-01-22
 
 ### Fixed
@@ -40,6 +56,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Database support
 - Analytics features
 
-[Unreleased]: https://github.com/galenspikes/spatelier/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/galenspikes/spatelier/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/galenspikes/spatelier/compare/v0.2.1...v0.3.0
+[0.2.1]: https://github.com/galenspikes/spatelier/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/galenspikes/spatelier/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/galenspikes/spatelier/releases/tag/v0.1.0
