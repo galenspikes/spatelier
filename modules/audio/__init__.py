@@ -2,4 +2,4 @@
 
 from .converter import AudioConverter
 
-__all__ = ['AudioConverter']
+__all__ = ["AudioConverter"]

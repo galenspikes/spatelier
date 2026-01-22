@@ -5,10 +5,10 @@ Provides mock objects and utilities for testing
 various components of the spatelier application.
 """
 
-from unittest.mock import Mock, MagicMock, patch
-from typing import Any, Dict, List, Optional
 import tempfile
 from pathlib import Path
+from typing import Any, Dict, List, Optional
+from unittest.mock import MagicMock, Mock, patch
 
 
 def create_mock_database_manager():
@@ -293,13 +293,13 @@ def create_mock_transcription_data():
                     {"word": "is", "start": 1.0, "end": 1.5},
                     {"word": "a", "start": 1.5, "end": 2.0},
                     {"word": "test", "start": 2.0, "end": 2.5},
-                    {"word": "transcription", "start": 2.5, "end": 3.0}
-                ]
+                    {"word": "transcription", "start": 2.5, "end": 3.0},
+                ],
             }
         ],
         "text": "Hello, this is a test transcription.",
         "processing_time": 10.0,
-        "model_used": "whisper-base"
+        "model_used": "whisper-base",
     }
 
 
@@ -314,7 +314,7 @@ def create_mock_video_info():
         "duration": 120,
         "thumbnail": "https://example.com/thumb.jpg",
         "extractor_key": "youtube",
-        "webpage_url": "https://youtube.com/watch?v=test_video_123"
+        "webpage_url": "https://youtube.com/watch?v=test_video_123",
     }
 
 
@@ -329,15 +329,15 @@ def create_mock_playlist_info():
                 "id": "video1",
                 "title": "Video 1",
                 "duration": 60,
-                "uploader": "Test Uploader"
+                "uploader": "Test Uploader",
             },
             {
                 "id": "video2",
                 "title": "Video 2",
                 "duration": 90,
-                "uploader": "Test Uploader"
-            }
-        ]
+                "uploader": "Test Uploader",
+            },
+        ],
     }
 
 

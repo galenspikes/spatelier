@@ -181,12 +181,11 @@ explicit_package_bases = true
 namespace_packages = true
 mypy_path = "."
 ignore_missing_imports = true
-disable_error_code = ["import-untyped"]
-exclude = '(\.venv/|\.data/|\.temp/|/site-packages/|^build/|^dist/)'
+# Removed invalid error code: import-untyped
+exclude = '(\.venv/|\.data/|\.temp/|/site-packages/|^build/|^dist/|^bin/)'
 ignore_errors = true
 files = [
     "analytics",
-    "bin",
     "cli",
     "core",
     "database",
