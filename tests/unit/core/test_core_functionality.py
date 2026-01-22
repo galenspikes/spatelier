@@ -82,7 +82,6 @@ def test_transcription_config_defaults():
 
     assert config.default_model == "small"
     assert config.default_language == "en"
-    assert config.use_faster_whisper == True
     assert config.device == "auto"
     assert config.compute_type == "auto"
 

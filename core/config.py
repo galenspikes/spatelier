@@ -145,7 +145,6 @@ class TranscriptionConfig(BaseModel):
 
     default_model: str = "small"  # Changed from "large" - faster, good accuracy
     default_language: str = "en"
-    use_faster_whisper: bool = True
     device: str = "auto"
     compute_type: str = "auto"
 
