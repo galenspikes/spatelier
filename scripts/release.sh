@@ -136,11 +136,13 @@ log_and_echo ""
 log_and_echo -e "${GREEN}✅ Pre-release checks passed${NC}"
 log_plain "SUCCESS: Pre-release checks passed"
 log_and_echo ""
-
-# Update Homebrew formula BEFORE tagging (so tag includes everything)
+# Update Homebrew formula first
+# Note: We calculate SHA256 from HEAD (current commit). After committing the formula update,
+# we'll tag the commit BEFORE the formula update, so the SHA256 matches.
 log_and_echo -e "${GREEN}🍺 Updating Homebrew formula...${NC}"
 log_plain "Updating Homebrew formula"
 if [ -f "scripts/update_homebrew.sh" ]; then
+    # Calculate SHA256 from current HEAD (this commit will be tagged, before formula update)
     ./scripts/update_homebrew.sh "$TAG" 2>&1 | tee -a "$LOG_FILE"
     if [ ${PIPESTATUS[0]} -eq 0 ]; then
         log_and_echo -e "${GREEN}✅ Homebrew formula updated${NC}"
@@ -191,11 +193,26 @@ else
 fi
 
 log_and_echo ""
-# Create and push tag AFTER formula update (so tag includes everything)
-log_and_echo -e "${GREEN}📝 Creating tag ${TAG}...${NC}"
-log_plain "Creating git tag: ${TAG}"
-git tag -a "$TAG" -m "Release ${TAG}" 2>&1 | tee -a "$LOG_FILE"
+# Create tag pointing to the commit BEFORE formula update (so SHA256 matches)
+# The formula update is a separate commit that comes after the tag
+if git diff --quiet HEAD~1 HEAD -- Formula/spatelier.rb 2>/dev/null; then
+    # No formula update was committed, tag current HEAD
+    log_and_echo -e "${GREEN}📝 Creating tag ${TAG}...${NC}"
+    log_plain "Creating git tag: ${TAG}"
+    git tag -a "$TAG" -m "Release ${TAG}" 2>&1 | tee -a "$LOG_FILE"
+    log_and_echo -e "${GREEN}✅ Tag created${NC}"
+    log_plain "SUCCESS: Tag created"
+else
+    # Formula update was committed, tag the commit before it (so SHA256 matches)
+    log_and_echo -e "${GREEN}📝 Creating tag ${TAG} (pointing to commit before formula update)...${NC}"
+    log_plain "Creating git tag: ${TAG} at HEAD~1"
+    git tag -a "$TAG" -m "Release ${TAG}" HEAD~1 2>&1 | tee -a "$LOG_FILE"
+    log_and_echo -e "${GREEN}✅ Tag created at commit before formula update${NC}"
+    log_plain "SUCCESS: Tag created"
+fi
 
+log_and_echo ""
+# Push tag and commits to origin
 log_and_echo -e "${GREEN}📤 Pushing tag and commits to origin...${NC}"
 log_plain "Pushing tag and commits to origin"
 git push origin "$TAG" 2>&1 | tee -a "$LOG_FILE"
