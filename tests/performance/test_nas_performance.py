@@ -39,9 +39,11 @@ class TestNASPerformance:
             results[scenario_name] = {
                 "write_time": write_time,
                 "size": scenario["size"],
-                "throughput_mbps": (scenario["size"] / (1024 * 1024)) / write_time
-                if write_time > 0
-                else 0,
+                "throughput_mbps": (
+                    (scenario["size"] / (1024 * 1024)) / write_time
+                    if write_time > 0
+                    else 0
+                ),
             }
 
             # Verify file was written correctly
@@ -80,9 +82,11 @@ class TestNASPerformance:
             results[scenario_name] = {
                 "read_time": read_time,
                 "size": scenario["size"],
-                "throughput_mbps": (scenario["size"] / (1024 * 1024)) / read_time
-                if read_time > 0
-                else 0,
+                "throughput_mbps": (
+                    (scenario["size"] / (1024 * 1024)) / read_time
+                    if read_time > 0
+                    else 0
+                ),
             }
 
             # Verify content

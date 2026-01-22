@@ -80,7 +80,7 @@ def test_transcription_config_defaults():
     """Test TranscriptionConfig defaults."""
     config = TranscriptionConfig()
 
-    assert config.default_model == "large"
+    assert config.default_model == "small"
     assert config.default_language == "en"
     assert config.use_faster_whisper == True
     assert config.device == "auto"

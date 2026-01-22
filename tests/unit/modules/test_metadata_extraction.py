@@ -254,13 +254,17 @@ def test_metadata_manager_enrich_media_file(metadata_manager):
     repository.session.refresh = Mock()
 
     # Mock metadata extraction
-    with patch.object(
-        metadata_manager.extractor, "extract_file_metadata"
-    ) as mock_file_meta, patch.object(
-        metadata_manager.extractor, "extract_youtube_metadata"
-    ) as mock_youtube_meta, patch.object(
-        metadata_manager.extractor, "update_media_file_metadata"
-    ) as mock_update:
+    with (
+        patch.object(
+            metadata_manager.extractor, "extract_file_metadata"
+        ) as mock_file_meta,
+        patch.object(
+            metadata_manager.extractor, "extract_youtube_metadata"
+        ) as mock_youtube_meta,
+        patch.object(
+            metadata_manager.extractor, "update_media_file_metadata"
+        ) as mock_update,
+    ):
         mock_file_meta.return_value = {"duration": 120.5, "width": 1920}
         mock_youtube_meta.return_value = {
             "title": "Test Video",

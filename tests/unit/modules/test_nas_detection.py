@@ -134,15 +134,12 @@ class TestNASDetection:
         mock_is_nas.return_value = True
 
         # Mock other dependencies
-        with patch.object(
-            downloader, "_build_ydl_opts"
-        ) as mock_build_opts, patch.object(
-            downloader, "_find_downloaded_file"
-        ) as mock_find_file, patch.object(
-            downloader, "_move_file_to_final_destination"
-        ) as mock_move, patch.object(
-            downloader, "_cleanup_temp_directory"
-        ) as mock_cleanup:
+        with (
+            patch.object(downloader, "_build_ydl_opts") as mock_build_opts,
+            patch.object(downloader, "_find_downloaded_file") as mock_find_file,
+            patch.object(downloader, "_move_file_to_final_destination") as mock_move,
+            patch.object(downloader, "_cleanup_temp_directory") as mock_cleanup,
+        ):
             # Mock return values
             mock_build_opts.return_value = {"outtmpl": "test.%(ext)s"}
             mock_find_file.return_value = Path("./.temp/0/test_video.mp4")

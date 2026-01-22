@@ -258,9 +258,9 @@ def update(
                 f"Successful: {success_count}/{len(packages_to_update)}\n"
                 f"Failed: {len(packages_to_update) - success_count}",
                 title="Update Complete",
-                border_style="green"
-                if success_count == len(packages_to_update)
-                else "yellow",
+                border_style=(
+                    "green" if success_count == len(packages_to_update) else "yellow"
+                ),
             )
         )
 

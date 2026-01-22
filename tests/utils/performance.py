@@ -63,25 +63,29 @@ class PerformanceMonitor:
         return {
             "total_duration": total_duration,
             "operation_count": len(self.operations),
-            "average_operation_time": statistics.mean(
-                [op["duration"] for op in self.operations]
-            )
-            if self.operations
-            else 0,
-            "max_operation_time": max([op["duration"] for op in self.operations])
-            if self.operations
-            else 0,
-            "min_operation_time": min([op["duration"] for op in self.operations])
-            if self.operations
-            else 0,
+            "average_operation_time": (
+                statistics.mean([op["duration"] for op in self.operations])
+                if self.operations
+                else 0
+            ),
+            "max_operation_time": (
+                max([op["duration"] for op in self.operations])
+                if self.operations
+                else 0
+            ),
+            "min_operation_time": (
+                min([op["duration"] for op in self.operations])
+                if self.operations
+                else 0
+            ),
             "peak_memory_usage": max(self.memory_usage) if self.memory_usage else 0,
-            "average_memory_usage": statistics.mean(self.memory_usage)
-            if self.memory_usage
-            else 0,
+            "average_memory_usage": (
+                statistics.mean(self.memory_usage) if self.memory_usage else 0
+            ),
             "peak_cpu_usage": max(self.cpu_usage) if self.cpu_usage else 0,
-            "average_cpu_usage": statistics.mean(self.cpu_usage)
-            if self.cpu_usage
-            else 0,
+            "average_cpu_usage": (
+                statistics.mean(self.cpu_usage) if self.cpu_usage else 0
+            ),
         }
 
 
@@ -313,12 +317,12 @@ def benchmark_latency(
         "min_duration": min(durations),
         "max_duration": max(durations),
         "std_duration": statistics.stdev(durations) if len(durations) > 1 else 0,
-        "p95_duration": sorted(durations)[int(0.95 * len(durations))]
-        if durations
-        else 0,
-        "p99_duration": sorted(durations)[int(0.99 * len(durations))]
-        if durations
-        else 0,
+        "p95_duration": (
+            sorted(durations)[int(0.95 * len(durations))] if durations else 0
+        ),
+        "p99_duration": (
+            sorted(durations)[int(0.99 * len(durations))] if durations else 0
+        ),
     }
 
 

@@ -131,9 +131,9 @@ class AudioConverter(BaseService):
                     "output_size": output_size,
                     "format": format,
                     "bitrate": bitrate,
-                    "compression_ratio": round(output_size / input_size, 2)
-                    if input_size > 0
-                    else 0,
+                    "compression_ratio": (
+                        round(output_size / input_size, 2) if input_size > 0 else 0
+                    ),
                 },
             )
 

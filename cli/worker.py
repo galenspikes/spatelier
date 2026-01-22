@@ -327,13 +327,15 @@ def list_jobs(
                 job_info = {
                     "id": job.id,
                     "type": job.job_type.value,
-                    "status": job.status.value
-                    if hasattr(job.status, "value")
-                    else str(job.status),
+                    "status": (
+                        job.status.value
+                        if hasattr(job.status, "value")
+                        else str(job.status)
+                    ),
                     "path": job.job_path,
-                    "created_at": job.created_at.isoformat()
-                    if job.created_at
-                    else None,
+                    "created_at": (
+                        job.created_at.isoformat() if job.created_at else None
+                    ),
                     "error_message": job.error_message,
                     "retry_count": job.retry_count,
                     "max_retries": job.max_retries,

@@ -255,16 +255,15 @@ class ProcessingJobRepository:
                     job.started_at = datetime.now()
             elif status in [ProcessingStatus.COMPLETED, ProcessingStatus.FAILED]:
                 job.completed_at = datetime.now()
-                # Calculate duration using started_at if available, otherwise use created_at
+                # Calculate duration only if started_at is set
+                # If job was completed without PROCESSING status, duration should be None
                 if job.started_at:
                     job.duration_seconds = (
                         job.completed_at - job.started_at
                     ).total_seconds()
-                elif job.created_at:
-                    # Fallback to created_at if started_at was never set
-                    job.duration_seconds = (
-                        job.completed_at - job.created_at
-                    ).total_seconds()
+                else:
+                    # No duration if job was never in PROCESSING status
+                    job.duration_seconds = None
 
             self.session.commit()
             self.logger.info(f"Updated job {job_id} status to {status}")

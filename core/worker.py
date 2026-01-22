@@ -615,9 +615,9 @@ class Worker:
             "throttling": {
                 "min_time_between_jobs": self.min_time_between_jobs,
                 "additional_sleep_time": self.additional_sleep_time,
-                "last_job_time": self.last_job_time.isoformat()
-                if self.last_job_time
-                else None,
+                "last_job_time": (
+                    self.last_job_time.isoformat() if self.last_job_time else None
+                ),
             },
             "queue_status": queue_status,
             "worker_stats": self.stats,
