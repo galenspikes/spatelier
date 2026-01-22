@@ -136,86 +136,112 @@ log_and_echo ""
 log_and_echo -e "${GREEN}✅ Pre-release checks passed${NC}"
 log_plain "SUCCESS: Pre-release checks passed"
 log_and_echo ""
-# Update Homebrew formula first
-# Note: We calculate SHA256 from HEAD (current commit). After committing the formula update,
-# we'll tag the commit BEFORE the formula update, so the SHA256 matches.
-log_and_echo -e "${GREEN}🍺 Updating Homebrew formula...${NC}"
-log_plain "Updating Homebrew formula"
-if [ -f "scripts/update_homebrew.sh" ]; then
-    # Calculate SHA256 from current HEAD (this commit will be tagged, before formula update)
-    ./scripts/update_homebrew.sh "$TAG" 2>&1 | tee -a "$LOG_FILE"
-    if [ ${PIPESTATUS[0]} -eq 0 ]; then
-        log_and_echo -e "${GREEN}✅ Homebrew formula updated${NC}"
-        log_plain "SUCCESS: Homebrew formula updated"
-        
-        # Stage and commit the formula update
-        if git diff --quiet Formula/spatelier.rb; then
-            log_and_echo -e "${YELLOW}No changes to Formula/spatelier.rb${NC}"
-        else
-            log_and_echo -e "${GREEN}📝 Committing formula update...${NC}"
-            log_plain "Committing formula update"
-            git add Formula/spatelier.rb 2>&1 | tee -a "$LOG_FILE"
-            git commit -m "Update Homebrew formula for ${TAG}" 2>&1 | tee -a "$LOG_FILE"
-            log_and_echo -e "${GREEN}✅ Formula update committed${NC}"
-            log_plain "SUCCESS: Formula update committed"
-            
-            # Update tap repository if it exists (before tagging)
-            TAP_REPO="../homebrew-spatelier"
-            if [ -d "$TAP_REPO" ] && [ -d "$TAP_REPO/.git" ]; then
-                log_and_echo -e "${GREEN}🍺 Updating Homebrew tap repository...${NC}"
-                log_plain "Updating tap repository at $TAP_REPO"
-                (
-                    cd "$TAP_REPO" || exit 1
-                    git pull 2>&1 | tee -a "$LOG_FILE"
-                    cp "../spatelier/Formula/spatelier.rb" "Formula/spatelier.rb" 2>&1 | tee -a "$LOG_FILE"
-                    if ! git diff --quiet Formula/spatelier.rb; then
-                        git add Formula/spatelier.rb 2>&1 | tee -a "$LOG_FILE"
-                        git commit -m "Update to ${TAG}" 2>&1 | tee -a "$LOG_FILE"
-                        git push 2>&1 | tee -a "$LOG_FILE"
-                        log_and_echo -e "${GREEN}✅ Tap repository updated${NC}"
-                        log_plain "SUCCESS: Tap repository updated"
-                    else
-                        log_and_echo -e "${YELLOW}No changes needed in tap repository${NC}"
-                    fi
-                ) || log_and_echo -e "${YELLOW}Warning: Could not update tap repository${NC}"
-            else
-                log_and_echo -e "${YELLOW}Tap repository not found at ${TAP_REPO}, skipping${NC}"
-                log_plain "INFO: Tap repository not found"
-            fi
-        fi
-    else
-        log_and_echo -e "${YELLOW}Warning: Homebrew formula update failed, but continuing...${NC}"
-        log_plain "WARNING: Homebrew formula update failed"
-    fi
-else
-    log_and_echo -e "${YELLOW}Warning: update_homebrew.sh not found, skipping formula update${NC}"
-    log_plain "WARNING: update_homebrew.sh not found"
-fi
+# Create and push tag FIRST, then download actual tarball from GitHub
+log_and_echo -e "${GREEN}📝 Creating tag ${TAG}...${NC}"
+log_plain "Creating git tag: ${TAG}"
+git tag -a "$TAG" -m "Release ${TAG}" 2>&1 | tee -a "$LOG_FILE"
+log_and_echo -e "${GREEN}✅ Tag created${NC}"
+log_plain "SUCCESS: Tag created"
 
 log_and_echo ""
-# Create tag pointing to the commit BEFORE formula update (so SHA256 matches)
-# The formula update is a separate commit that comes after the tag
-if git diff --quiet HEAD~1 HEAD -- Formula/spatelier.rb 2>/dev/null; then
-    # No formula update was committed, tag current HEAD
-    log_and_echo -e "${GREEN}📝 Creating tag ${TAG}...${NC}"
-    log_plain "Creating git tag: ${TAG}"
-    git tag -a "$TAG" -m "Release ${TAG}" 2>&1 | tee -a "$LOG_FILE"
-    log_and_echo -e "${GREEN}✅ Tag created${NC}"
-    log_plain "SUCCESS: Tag created"
-else
-    # Formula update was committed, tag the commit before it (so SHA256 matches)
-    log_and_echo -e "${GREEN}📝 Creating tag ${TAG} (pointing to commit before formula update)...${NC}"
-    log_plain "Creating git tag: ${TAG} at HEAD~1"
-    git tag -a "$TAG" -m "Release ${TAG}" HEAD~1 2>&1 | tee -a "$LOG_FILE"
-    log_and_echo -e "${GREEN}✅ Tag created at commit before formula update${NC}"
-    log_plain "SUCCESS: Tag created"
-fi
-
-log_and_echo ""
-# Push tag and commits to origin
-log_and_echo -e "${GREEN}📤 Pushing tag and commits to origin...${NC}"
-log_plain "Pushing tag and commits to origin"
+log_and_echo -e "${GREEN}📤 Pushing tag to origin...${NC}"
+log_plain "Pushing tag to origin"
 git push origin "$TAG" 2>&1 | tee -a "$LOG_FILE"
+log_and_echo -e "${GREEN}✅ Tag pushed${NC}"
+log_plain "SUCCESS: Tag pushed"
+
+log_and_echo ""
+log_and_echo -e "${YELLOW}⏳ Waiting for GitHub to generate tarball...${NC}"
+log_plain "Waiting 5 seconds for GitHub to generate tarball"
+sleep 5
+
+log_and_echo ""
+# Update Homebrew formula SHA256
+log_and_echo -e "${GREEN}🍺 Updating Homebrew formula SHA256...${NC}"
+log_plain "Updating Homebrew formula SHA256"
+
+URL="https://github.com/galenspikes/spatelier/archive/refs/tags/${TAG}.tar.gz"
+FORMULA_FILE="Formula/spatelier.rb"
+
+# Calculate SHA256 from GitHub tarball (retry if GitHub hasn't generated it yet)
+SHA256=""
+MAX_RETRIES=5
+RETRY_DELAY=3
+
+for i in $(seq 1 $MAX_RETRIES); do
+    # Download and calculate SHA256
+    SHA256=$(curl -sLf "$URL" 2>/dev/null | shasum -a 256 2>/dev/null | awk '{print $1}')
+    
+    # SHA256 should be exactly 64 hex characters (not empty string hash)
+    if [ -n "$SHA256" ] && [ ${#SHA256} -eq 64 ] && [ "$SHA256" != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" ]; then
+        break
+    fi
+    
+    if [ $i -lt $MAX_RETRIES ]; then
+        log_and_echo -e "${YELLOW}⏳ Waiting for GitHub tarball (attempt $i/$MAX_RETRIES)...${NC}"
+        log_plain "Waiting for GitHub tarball, attempt $i/$MAX_RETRIES"
+        sleep $RETRY_DELAY
+    fi
+done
+
+if [ -z "$SHA256" ] || [ ${#SHA256} -ne 64 ]; then
+    log_and_echo -e "${RED}Error: Could not calculate SHA256 from GitHub tarball${NC}"
+    log_plain "ERROR: Could not calculate SHA256"
+    log_and_echo "   URL: ${URL}"
+    log_and_echo "   Make sure the tag exists on GitHub and try again"
+    exit 1
+fi
+
+log_and_echo -e "${GREEN}✅ SHA256: ${SHA256}${NC}"
+log_plain "SHA256: ${SHA256}"
+
+# Update formula
+sed -i '' "s|url \".*\"|url \"${URL}\"|" "$FORMULA_FILE"
+sed -i '' "s|sha256 \".*\"|sha256 \"${SHA256}\"|" "$FORMULA_FILE"
+
+log_and_echo -e "${GREEN}✅ Updated ${FORMULA_FILE}${NC}"
+log_plain "SUCCESS: Formula updated"
+
+# Stage and commit the formula update
+if git diff --quiet Formula/spatelier.rb; then
+    log_and_echo -e "${YELLOW}No changes to Formula/spatelier.rb${NC}"
+else
+    log_and_echo -e "${GREEN}📝 Committing formula update...${NC}"
+    log_plain "Committing formula update"
+    git add Formula/spatelier.rb 2>&1 | tee -a "$LOG_FILE"
+    git commit -m "Update Homebrew formula for ${TAG}" 2>&1 | tee -a "$LOG_FILE"
+    log_and_echo -e "${GREEN}✅ Formula update committed${NC}"
+    log_plain "SUCCESS: Formula update committed"
+    
+    # Update tap repository if it exists
+    TAP_REPO="../homebrew-spatelier"
+    if [ -d "$TAP_REPO" ] && [ -d "$TAP_REPO/.git" ]; then
+        log_and_echo -e "${GREEN}🍺 Updating Homebrew tap repository...${NC}"
+        log_plain "Updating tap repository at $TAP_REPO"
+        (
+            cd "$TAP_REPO" || exit 1
+            git pull 2>&1 | tee -a "$LOG_FILE"
+            cp "../spatelier/Formula/spatelier.rb" "Formula/spatelier.rb" 2>&1 | tee -a "$LOG_FILE"
+            if ! git diff --quiet Formula/spatelier.rb; then
+                git add Formula/spatelier.rb 2>&1 | tee -a "$LOG_FILE"
+                git commit -m "Update to ${TAG}" 2>&1 | tee -a "$LOG_FILE"
+                git push 2>&1 | tee -a "$LOG_FILE"
+                log_and_echo -e "${GREEN}✅ Tap repository updated${NC}"
+                log_plain "SUCCESS: Tap repository updated"
+            else
+                log_and_echo -e "${YELLOW}No changes needed in tap repository${NC}"
+            fi
+        ) || log_and_echo -e "${YELLOW}Warning: Could not update tap repository${NC}"
+    else
+        log_and_echo -e "${YELLOW}Tap repository not found at ${TAP_REPO}, skipping${NC}"
+        log_plain "INFO: Tap repository not found"
+    fi
+fi
+
+log_and_echo ""
+# Push commits (tag already pushed above)
+log_and_echo -e "${GREEN}📤 Pushing commits to origin...${NC}"
+log_plain "Pushing commits to origin"
 git push 2>&1 | tee -a "$LOG_FILE"
 
 log_and_echo ""
