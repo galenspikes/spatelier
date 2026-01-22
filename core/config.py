@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 def _find_repo_root() -> Optional[Path]:
+    """Find repository root by looking for pyproject.toml."""
     current = Path(__file__).resolve()
     for parent in current.parents:
         if (parent / "pyproject.toml").exists():
@@ -22,13 +23,28 @@ def _find_repo_root() -> Optional[Path]:
 
 
 def get_default_data_dir() -> Path:
-    """Get default data directory - always in repo root."""
+    """
+    Get default data directory.
+    
+    If running from repo, use repo/.data
+    If installed (e.g., via Homebrew), use ~/.local/share/spatelier (or ~/Library/Application Support/spatelier on macOS)
+    """
     repo_root = _find_repo_root()
-    if not repo_root:
-        raise RuntimeError(
-            "Cannot find repository root. Spatelier must be run from within the repository."
-        )
-    return repo_root / ".data"
+    if repo_root:
+        # Running from development repo
+        return repo_root / ".data"
+    
+    # Running from installed location - use user data directory
+    import platform
+    if platform.system() == "Darwin":  # macOS
+        data_dir = Path.home() / "Library" / "Application Support" / "spatelier"
+    else:
+        # Linux/Unix
+        data_dir = Path.home() / ".local" / "share" / "spatelier"
+    
+    # Create directory if it doesn't exist
+    data_dir.mkdir(parents=True, exist_ok=True)
+    return data_dir
 
 
 class VideoConfig(BaseModel):

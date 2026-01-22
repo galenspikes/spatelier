@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-01-22
+
+### Fixed
+- Fixed `get_default_data_dir()` to work when installed via Homebrew or other package managers
+- Now uses `~/Library/Application Support/spatelier` on macOS when not in development mode
+- Previously required running from repository root, now works from any location
+
 ## [0.2.0] - 2026-01-21
 
 ### Added
