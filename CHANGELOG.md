@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-01-22
+
+### Fixed
+- Job duration calculation: now returns `None` when job completes without PROCESSING status (was incorrectly using `created_at` fallback)
+- Version consistency: `spatelier/__init__.py` now matches `pyproject.toml` version
+
+### Changed
+- Black target-version updated from `py39` to `py310` to match `requires-python >=3.10`
+- Code formatting: all files reformatted with Black (py310 target)
+
+### Removed
+- Removed unused `bin/` directory and convenience scripts (entry point is in `pyproject.toml`)
+- Removed broken `spt` symlink
+- Removed `.venv` directory (using `venv/` instead)
+
 ## [0.3.0] - 2026-01-22
 
 ### Added
@@ -56,7 +71,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Database support
 - Analytics features
 
-[Unreleased]: https://github.com/galenspikes/spatelier/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/galenspikes/spatelier/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/galenspikes/spatelier/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/galenspikes/spatelier/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/galenspikes/spatelier/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/galenspikes/spatelier/compare/v0.1.0...v0.2.0
