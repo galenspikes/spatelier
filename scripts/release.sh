@@ -150,15 +150,40 @@ log_and_echo ""
 log_and_echo -e "${GREEN}✅ Tag ${TAG} pushed successfully!${NC}"
 log_plain "SUCCESS: Tag pushed successfully"
 log_and_echo ""
+
+# Update Homebrew formula
+log_and_echo -e "${GREEN}🍺 Updating Homebrew formula...${NC}"
+log_plain "Updating Homebrew formula"
+if [ -f "scripts/update_homebrew.sh" ]; then
+    ./scripts/update_homebrew.sh "$TAG" 2>&1 | tee -a "$LOG_FILE"
+    if [ ${PIPESTATUS[0]} -eq 0 ]; then
+        log_and_echo -e "${GREEN}✅ Homebrew formula updated${NC}"
+        log_plain "SUCCESS: Homebrew formula updated"
+        
+        # Stage and commit the formula update
+        if git diff --quiet Formula/spatelier.rb; then
+            log_and_echo -e "${YELLOW}No changes to Formula/spatelier.rb${NC}"
+        else
+            log_and_echo -e "${GREEN}📝 Committing formula update...${NC}"
+            log_plain "Committing formula update"
+            git add Formula/spatelier.rb 2>&1 | tee -a "$LOG_FILE"
+            git commit -m "Update Homebrew formula for ${TAG}" 2>&1 | tee -a "$LOG_FILE"
+            git push 2>&1 | tee -a "$LOG_FILE"
+            log_and_echo -e "${GREEN}✅ Formula update committed and pushed${NC}"
+            log_plain "SUCCESS: Formula update committed and pushed"
+        fi
+    else
+        log_and_echo -e "${YELLOW}Warning: Homebrew formula update failed, but continuing...${NC}"
+        log_plain "WARNING: Homebrew formula update failed"
+    fi
+else
+    log_and_echo -e "${YELLOW}Warning: update_homebrew.sh not found, skipping formula update${NC}"
+    log_plain "WARNING: update_homebrew.sh not found"
+fi
+
+log_and_echo ""
 log_and_echo -e "${YELLOW}⏳ Waiting for GitHub Actions to create release...${NC}"
 log_and_echo "   Check progress at: https://github.com/galenspikes/spatelier/actions"
-log_and_echo ""
-log_and_echo "Once the release is created, run:"
-log_and_echo -e "  ${GREEN}./scripts/update_homebrew.sh ${TAG}${NC}"
-log_and_echo ""
-log_and_echo "Or manually update Formula/spatelier.rb with:"
-log_and_echo "  1. URL: https://github.com/galenspikes/spatelier/archive/refs/tags/${TAG}.tar.gz"
-log_and_echo "  2. SHA256: (get from release tarball)"
 
 # Final log entry
 log_plain "=========================================="
