@@ -512,6 +512,10 @@ class VideoDownloadService(BaseService):
             "writeautomaticsub": False,
             "no_warnings": not self.verbose,
             "quiet": not self.verbose,
+            # Add fallback formats for YouTube SABR streaming issues
+            "format_sort": ["res", "ext", "codec", "br", "asr"],
+            # Try to use available formats even if preferred format fails
+            "ignoreerrors": False,
         }
 
         # Automatically try to use cookies from browser for age-restricted content
@@ -529,18 +533,21 @@ class VideoDownloadService(BaseService):
         return ydl_opts
 
     def _get_format_selector(self, quality: str, format: str) -> str:
-        """Get format selector for yt-dlp."""
+        """Get format selector for yt-dlp with fallbacks for YouTube issues."""
         if quality == "best":
-            return f"best[ext={format}]/best"
+            # Add fallback chain: preferred format -> any format -> best available
+            return f"best[ext={format}]/bestvideo[ext={format}]+bestaudio/best[ext={format}]/best"
         elif quality == "worst":
             return f"worst[ext={format}]/worst"
         else:
             # Extract numeric part from quality (e.g., "1080p" -> "1080")
             try:
                 height = quality.replace("p", "")
-                return f"best[height<={height}][ext={format}]/best"
+                # Add fallback chain with height constraint
+                return f"best[height<={height}][ext={format}]/bestvideo[height<={height}]+bestaudio/best[height<={height}]/best"
             except:
-                return f"best[ext={format}]/best"
+                # Fallback to simpler selector if parsing fails
+                return f"best[ext={format}]/bestvideo+bestaudio/best"
 
     def _is_nas_path(self, path: Union[str, Path]) -> bool:
         """Check if path is on NAS."""
