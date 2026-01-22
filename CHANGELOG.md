@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-01-22
+
+### Fixed
+- Homebrew installation checksum error: Fixed SHA256 calculation in release script to use `git archive` instead of downloading from GitHub before tag exists
+- Release script now correctly calculates SHA256 from the commit that will be tagged, ensuring Homebrew formula checksums match GitHub-generated tarballs
+
 ## [0.3.2] - 2026-01-22
 
 ### Changed

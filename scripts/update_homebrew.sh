@@ -21,11 +21,29 @@ VERSION="${TAG#v}"  # Remove 'v' prefix
 URL="https://github.com/galenspikes/spatelier/archive/refs/tags/${TAG}.tar.gz"
 FORMULA_FILE="Formula/spatelier.rb"
 
-echo -e "${GREEN}🔍 Getting SHA256 for ${TAG}...${NC}"
+echo -e "${GREEN}🔍 Calculating SHA256 for ${TAG} from current commit...${NC}"
 
-# Download tarball and calculate SHA256
+# Check if tag exists locally
+if git rev-parse "$TAG" >/dev/null 2>&1; then
+    # Tag exists locally, use it
+    REF="$TAG"
+    echo -e "${YELLOW}Note: Using existing local tag ${TAG}${NC}"
+else
+    # Tag doesn't exist yet, use HEAD (will be tagged in release script)
+    REF="HEAD"
+    echo -e "${YELLOW}Note: Tag ${TAG} doesn't exist yet, using HEAD (will be tagged next)${NC}"
+fi
+
+# Create local tarball matching GitHub's format
+# GitHub uses: git archive --format=tar.gz --prefix=<repo-name>-<version>/ <ref>
 TEMP_FILE=$(mktemp)
-curl -L -s -o "$TEMP_FILE" "$URL"
+REPO_NAME="spatelier"
+PREFIX="${REPO_NAME}-${VERSION}/"
+
+echo -e "${GREEN}Creating tarball from ${REF} with prefix ${PREFIX}...${NC}"
+git archive --format=tar.gz --prefix="$PREFIX" "$REF" > "$TEMP_FILE"
+
+# Calculate SHA256 from local tarball
 SHA256=$(shasum -a 256 "$TEMP_FILE" | awk '{print $1}')
 rm "$TEMP_FILE"
 
