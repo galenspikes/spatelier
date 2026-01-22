@@ -43,8 +43,7 @@ if [ ! -f "$FORMULA_FILE" ]; then
     exit 1
 fi
 
-# Backup original
-cp "$FORMULA_FILE" "${FORMULA_FILE}.bak"
+# No backup needed - git tracks changes
 
 # Update URL and SHA256
 sed -i '' "s|url \".*\"|url \"${URL}\"|" "$FORMULA_FILE"
