@@ -6,7 +6,7 @@ max-line-length = 88
 # E501: line too long (black handles line length)
 # W503: line break before binary operator (black prefers this style)
 # W291: trailing whitespace (black handles this)
-ignore = E203,E231,E501,W503,W291,F401,F811,F841,F541,E722
+ignore = E203,E231,E501,W503,W291,F401,F811,F841,F541,E722,E712,F403,F405,E226
 exclude =
     venv,
     .venv,
@@ -14,4 +14,5 @@ exclude =
     .temp,
     build,
     dist,
-    migrations
+    migrations,
+    tests

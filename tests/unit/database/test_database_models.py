@@ -4,14 +4,21 @@ Tests for database models.
 This module tests all database models and their relationships.
 """
 
-import pytest
 from datetime import datetime
+
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from database.models import (
-    Base, MediaFile, ProcessingJob, AnalyticsEvent, DownloadSource, UserPreference,
-    MediaType, ProcessingStatus
+    AnalyticsEvent,
+    Base,
+    DownloadSource,
+    MediaFile,
+    MediaType,
+    ProcessingJob,
+    ProcessingStatus,
+    UserPreference,
 )
 
 
@@ -41,12 +48,12 @@ def test_media_file_creation(db_session):
         title="Test Video",
         uploader="Test User",
         source_url="https://youtube.com/watch?v=test",
-        source_platform="youtube"
+        source_platform="youtube",
     )
-    
+
     db_session.add(media_file)
     db_session.commit()
-    
+
     assert media_file.id is not None
     assert media_file.file_path == "/test/video.mp4"
     assert media_file.media_type == MediaType.VIDEO
@@ -63,23 +70,23 @@ def test_processing_job_creation(db_session):
         file_size=1024000,
         file_hash="abc123",
         media_type=MediaType.VIDEO,
-        mime_type="video/mp4"
+        mime_type="video/mp4",
     )
     db_session.add(media_file)
     db_session.commit()
-    
+
     # Create processing job
     job = ProcessingJob(
         media_file_id=media_file.id,
         job_type="download",
         input_path="https://youtube.com/watch?v=test",
         output_path="/test/video.mp4",
-        status=ProcessingStatus.PENDING
+        status=ProcessingStatus.PENDING,
     )
-    
+
     db_session.add(job)
     db_session.commit()
-    
+
     assert job.id is not None
     assert job.media_file_id == media_file.id
     assert job.job_type == "download"
@@ -95,22 +102,22 @@ def test_analytics_event_creation(db_session):
         file_size=1024000,
         file_hash="abc123",
         media_type=MediaType.VIDEO,
-        mime_type="video/mp4"
+        mime_type="video/mp4",
     )
     db_session.add(media_file)
     db_session.commit()
-    
+
     # Create analytics event
     event = AnalyticsEvent(
         media_file_id=media_file.id,
         event_type="download",
         event_data='{"url": "https://youtube.com/watch?v=test"}',
-        user_id="user123"
+        user_id="user123",
     )
-    
+
     db_session.add(event)
     db_session.commit()
-    
+
     assert event.id is not None
     assert event.media_file_id == media_file.id
     assert event.event_type == "download"
@@ -127,12 +134,12 @@ def test_download_source_creation(db_session):
         duration=120.5,
         uploader="Test User",
         view_count=1000,
-        like_count=50
+        like_count=50,
     )
-    
+
     db_session.add(source)
     db_session.commit()
-    
+
     assert source.id is not None
     assert source.url == "https://youtube.com/watch?v=test"
     assert source.domain == "youtube.com"
@@ -142,14 +149,12 @@ def test_download_source_creation(db_session):
 def test_user_preference_creation(db_session):
     """Test UserPreference model creation."""
     preference = UserPreference(
-        user_id="user123",
-        preference_key="default_quality",
-        preference_value="1080p"
+        user_id="user123", preference_key="default_quality", preference_value="1080p"
     )
-    
+
     db_session.add(preference)
     db_session.commit()
-    
+
     assert preference.id is not None
     assert preference.user_id == "user123"
     assert preference.preference_key == "default_quality"
@@ -165,34 +170,32 @@ def test_media_file_relationships(db_session):
         file_size=1024000,
         file_hash="abc123",
         media_type=MediaType.VIDEO,
-        mime_type="video/mp4"
+        mime_type="video/mp4",
     )
     db_session.add(media_file)
     db_session.commit()
-    
+
     # Create processing job
     job = ProcessingJob(
         media_file_id=media_file.id,
         job_type="download",
         input_path="https://youtube.com/watch?v=test",
-        status=ProcessingStatus.PENDING
+        status=ProcessingStatus.PENDING,
     )
     db_session.add(job)
     db_session.commit()
-    
+
     # Create analytics event
     event = AnalyticsEvent(
-        media_file_id=media_file.id,
-        event_type="download",
-        user_id="user123"
+        media_file_id=media_file.id, event_type="download", user_id="user123"
     )
     db_session.add(event)
     db_session.commit()
-    
+
     # Test relationships
     assert len(media_file.processing_jobs) == 1
     assert media_file.processing_jobs[0].id == job.id
-    
+
     assert len(media_file.analytics_events) == 1
     assert media_file.analytics_events[0].id == event.id
 
@@ -206,32 +209,32 @@ def test_processing_job_status_updates(db_session):
         file_size=1024000,
         file_hash="abc123",
         media_type=MediaType.VIDEO,
-        mime_type="video/mp4"
+        mime_type="video/mp4",
     )
     db_session.add(media_file)
     db_session.commit()
-    
+
     # Create processing job
     job = ProcessingJob(
         media_file_id=media_file.id,
         job_type="download",
         input_path="https://youtube.com/watch?v=test",
-        status=ProcessingStatus.PENDING
+        status=ProcessingStatus.PENDING,
     )
     db_session.add(job)
     db_session.commit()
-    
+
     # Update status
     job.status = ProcessingStatus.PROCESSING
     job.started_at = datetime.now()
     db_session.commit()
-    
+
     # Update to completed
     job.status = ProcessingStatus.COMPLETED
     job.completed_at = datetime.now()
     job.duration_seconds = 30.5
     db_session.commit()
-    
+
     assert job.status == ProcessingStatus.COMPLETED
     assert job.started_at is not None
     assert job.completed_at is not None
@@ -274,12 +277,12 @@ def test_media_file_metadata_fields(db_session):
         audio_codec="aac",
         video_codec="h264",
         # Thumbnail
-        thumbnail_url="https://img.youtube.com/vi/test123/maxresdefault.jpg"
+        thumbnail_url="https://img.youtube.com/vi/test123/maxresdefault.jpg",
     )
-    
+
     db_session.add(media_file)
     db_session.commit()
-    
+
     # Test all metadata fields
     assert media_file.title == "Amazing Test Video"
     assert media_file.description == "This is a test video description"

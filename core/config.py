@@ -25,7 +25,7 @@ def _find_repo_root() -> Optional[Path]:
 def get_default_data_dir() -> Path:
     """
     Get default data directory.
-    
+
     If running from repo, use repo/.data
     If installed (e.g., via Homebrew), use ~/.local/share/spatelier (or ~/Library/Application Support/spatelier on macOS)
     """
@@ -33,15 +33,16 @@ def get_default_data_dir() -> Path:
     if repo_root:
         # Running from development repo
         return repo_root / ".data"
-    
+
     # Running from installed location - use user data directory
     import platform
+
     if platform.system() == "Darwin":  # macOS
         data_dir = Path.home() / "Library" / "Application Support" / "spatelier"
     else:
         # Linux/Unix
         data_dir = Path.home() / ".local" / "share" / "spatelier"
-    
+
     # Create directory if it doesn't exist
     data_dir.mkdir(parents=True, exist_ok=True)
     return data_dir
@@ -142,7 +143,7 @@ class DatabaseConfig(BaseModel):
 class TranscriptionConfig(BaseModel):
     """Transcription configuration."""
 
-    default_model: str = "large"
+    default_model: str = "small"  # Changed from "large" - faster, good accuracy
     default_language: str = "en"
     use_faster_whisper: bool = True
     device: str = "auto"

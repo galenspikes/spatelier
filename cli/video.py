@@ -48,7 +48,9 @@ def download(
         help="Maximum number of videos to download (for channels/playlists)",
     ),
     transcribe: bool = typer.Option(
-        True, "--transcribe/--no-transcribe", help="Enable automatic transcription"
+        False,
+        "--transcribe/--no-transcribe",
+        help="Enable automatic transcription (use download-enhanced for transcription by default)",
     ),
     verbose: bool = typer.Option(
         False, "--verbose", "-v", help="Enable verbose output"
@@ -289,7 +291,7 @@ def download_enhanced(
         help="Enable/disable automatic transcription",
     ),
     transcription_model: str = typer.Option(
-        "large",
+        "small",
         "--transcription-model",
         help="Whisper model size (tiny, base, small, medium, large)",
     ),
@@ -580,7 +582,7 @@ def embed_subtitles(
         help="Output video file (default: adds '_with_subs' to filename)",
     ),
     transcription_model: str = typer.Option(
-        "large",
+        "small",
         "--transcription-model",
         help="Whisper model size (tiny, base, small, medium, large)",
     ),

@@ -129,6 +129,9 @@ class PlaylistService(BaseService):
             self.logger.info(f"Downloading playlist to: {playlist_dir}")
             self.logger.info(f"Playlist record: {playlist_record.id}")
 
+            # Mark job as processing (sets started_at for duration tracking)
+            self.repos.jobs.update_status(job.id, ProcessingStatus.PROCESSING)
+
             # Download playlist using yt-dlp Python package
             self.logger.info(f"Downloading playlist from: {url}")
 

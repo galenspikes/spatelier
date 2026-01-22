@@ -121,6 +121,9 @@ class VideoDownloadService(BaseService):
                 self.logger.info(f"NAS detected, using temp processing: {temp_dir}")
                 self.logger.info(f"Video will be processed in: {processing_path}")
 
+            # Mark job as processing (sets started_at for duration tracking)
+            self.repos.jobs.update_status(job.id, ProcessingStatus.PROCESSING)
+
             # Download using yt-dlp
             downloaded_file = self._download_with_ytdlp(url, processing_path, **kwargs)
 
@@ -288,10 +291,16 @@ class VideoDownloadService(BaseService):
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
                 downloaded_file = self._resolve_downloaded_path(ydl, info)
-                if downloaded_file and downloaded_file.exists():
+                if (
+                    downloaded_file
+                    and downloaded_file.exists()
+                    and downloaded_file.stat().st_size > 0
+                ):
                     return downloaded_file
 
-            return self._find_latest_download(output_path)
+            # Only fallback to finding latest if we can't resolve the path
+            # But validate it matches the expected video ID to avoid picking up old files
+            return self._validate_fallback_file(output_path, url)
 
         except Exception as e:
             error_msg = str(e)
@@ -318,7 +327,11 @@ class VideoDownloadService(BaseService):
                         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                             info = ydl.extract_info(url, download=True)
                             downloaded_file = self._resolve_downloaded_path(ydl, info)
-                            if downloaded_file and downloaded_file.exists():
+                            if (
+                                downloaded_file
+                                and downloaded_file.exists()
+                                and downloaded_file.stat().st_size > 0
+                            ):
                                 return downloaded_file
 
                         # Clean up cookie file
@@ -329,7 +342,8 @@ class VideoDownloadService(BaseService):
                         except:
                             pass
 
-                        return self._find_latest_download(output_path)
+                        # Validate fallback file matches video ID
+                        return self._validate_fallback_file(output_path, url)
                     except Exception as retry_error:
                         # Clean up cookie file
                         import os
@@ -347,7 +361,7 @@ class VideoDownloadService(BaseService):
                     return None
             else:
                 self.logger.error(f"yt-dlp download failed: {e}")
-                return self._find_latest_download(output_path)
+                return self._validate_fallback_file(output_path, url)
 
     def _refresh_youtube_cookies(self) -> Optional[str]:
         """Refresh YouTube cookies by visiting YouTube and extracting fresh cookies.
@@ -473,6 +487,34 @@ class VideoDownloadService(BaseService):
             return None
 
         return max(candidates, key=lambda path: path.stat().st_mtime)
+
+    def _validate_fallback_file(self, output_path: Path, url: str) -> Optional[Path]:
+        """Find latest download and validate it matches the expected video ID."""
+        fallback_file = self._find_latest_download(output_path)
+        if not fallback_file:
+            return None
+
+        # Extract video ID from URL to validate
+        import re
+
+        # Match YouTube URLs including /shorts/, /watch?v=, /v/, /embed/, youtu.be
+        video_id_match = re.search(
+            r'(?:youtube\.com/(?:shorts/|watch\?v=|v/|embed/|[^/]+/.+/|.*[?&]v=)|youtu\.be/)([^"&?/\s]{11})',
+            url,
+        )
+        if video_id_match:
+            expected_id = video_id_match.group(1)
+            # Check if the filename contains the expected video ID
+            if expected_id in fallback_file.name:
+                return fallback_file
+            else:
+                self.logger.warning(
+                    f"Found file {fallback_file.name} but it doesn't match expected video ID {expected_id}. "
+                    "Download may have failed."
+                )
+                return None
+        # If we can't extract video ID, return the file anyway (for non-YouTube URLs)
+        return fallback_file
 
     def _get_cookies_from_browser(self) -> Optional[tuple]:
         """Try to get cookies from common browsers automatically.

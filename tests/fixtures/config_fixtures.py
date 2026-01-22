@@ -5,14 +5,15 @@ Provides fixtures for creating test configurations,
 environment variables, and configuration validation.
 """
 
-import pytest
-import tempfile
 import os
+import tempfile
 from pathlib import Path
-from typing import Generator, Dict, Any
+from typing import Any, Dict, Generator
 from unittest.mock import patch
 
-from core.config import Config, VideoConfig, AudioConfig
+import pytest
+
+from core.config import AudioConfig, Config, VideoConfig
 
 
 @pytest.fixture
@@ -44,11 +45,11 @@ mongodb_database = "test_spatelier"
 level = "DEBUG"
 format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 """
-    
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.ini', delete=False) as f:
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".ini", delete=False) as f:
         f.write(config_content)
         temp_path = Path(f.name)
-    
+
     yield temp_path
     temp_path.unlink(missing_ok=True)
 
@@ -101,9 +102,9 @@ def env_vars():
         "SPATELIER_VIDEO_TRANSCRIBE": "true",
         "SPATELIER_VIDEO_MODEL": "base",
         "SPATELIER_DATABASE_PATH": "/tmp/env_test.db",
-        "SPATELIER_MONGODB_DATABASE": "test_env"
+        "SPATELIER_MONGODB_DATABASE": "test_env",
     }
-    
+
     with patch.dict(os.environ, env):
         yield env
 
@@ -111,40 +112,42 @@ def env_vars():
 @pytest.fixture
 def config_factory():
     """Factory for creating custom configurations."""
+
     def _create_config(**kwargs) -> Config:
         config = Config()
-        
+
         # Apply core settings
-        if 'debug' in kwargs:
-            config.debug = kwargs['debug']
-        if 'verbose' in kwargs:
-            config.verbose = kwargs['verbose']
-        
+        if "debug" in kwargs:
+            config.debug = kwargs["debug"]
+        if "verbose" in kwargs:
+            config.verbose = kwargs["verbose"]
+
         # Apply video settings
-        if 'video_output' in kwargs:
-            config.video.output_dir = Path(kwargs['video_output'])
-        if 'model' in kwargs:
-            config.transcription.default_model = kwargs['model']
-        if 'language' in kwargs:
-            config.transcription.default_language = kwargs['language']
-        
+        if "video_output" in kwargs:
+            config.video.output_dir = Path(kwargs["video_output"])
+        if "model" in kwargs:
+            config.transcription.default_model = kwargs["model"]
+        if "language" in kwargs:
+            config.transcription.default_language = kwargs["language"]
+
         # Apply audio settings
-        if 'audio_output' in kwargs:
-            config.audio.output_dir = Path(kwargs['audio_output'])
-        if 'audio_format' in kwargs:
-            config.audio.default_format = kwargs['audio_format']
-        
+        if "audio_output" in kwargs:
+            config.audio.output_dir = Path(kwargs["audio_output"])
+        if "audio_format" in kwargs:
+            config.audio.default_format = kwargs["audio_format"]
+
         # Apply database settings
-        if 'db_path' in kwargs:
-            config.database.sqlite_path = Path(kwargs['db_path'])
-        if 'mongodb_db' in kwargs:
-            config.database.mongodb_database = kwargs['mongodb_db']
-        
+        if "db_path" in kwargs:
+            config.database.sqlite_path = Path(kwargs["db_path"])
+        if "mongodb_db" in kwargs:
+            config.database.mongodb_database = kwargs["mongodb_db"]
+
         # Apply logging settings
-        if 'log_level' in kwargs:
-            config.log_level = kwargs['log_level']
-        
+        if "log_level" in kwargs:
+            config.log_level = kwargs["log_level"]
+
         return config
+
     return _create_config
 
 
@@ -172,32 +175,12 @@ def config_with_nas_paths():
 def config_validation_fixtures():
     """Provide various configuration validation test cases."""
     return {
-        "valid_paths": [
-            "/tmp/test",
-            "/home/user/videos",
-            "/var/lib/spatelier"
-        ],
-        "invalid_paths": [
-            "",
-            "/nonexistent/path",
-            None
-        ],
-        "valid_languages": [
-            "en", "es", "fr", "de", "it", "pt", "ru", "ja", "ko", "zh"
-        ],
-        "invalid_languages": [
-            "invalid", "xx", "123", ""
-        ],
-        "valid_models": [
-            "tiny", "base", "small", "medium", "large"
-        ],
-        "invalid_models": [
-            "invalid", "huge", "micro", ""
-        ],
-        "valid_formats": [
-            "mp3", "wav", "flac", "aac", "ogg"
-        ],
-        "invalid_formats": [
-            "invalid", "mp4", "avi", ""
-        ]
+        "valid_paths": ["/tmp/test", "/home/user/videos", "/var/lib/spatelier"],
+        "invalid_paths": ["", "/nonexistent/path", None],
+        "valid_languages": ["en", "es", "fr", "de", "it", "pt", "ru", "ja", "ko", "zh"],
+        "invalid_languages": ["invalid", "xx", "123", ""],
+        "valid_models": ["tiny", "base", "small", "medium", "large"],
+        "invalid_models": ["invalid", "huge", "micro", ""],
+        "valid_formats": ["mp3", "wav", "flac", "aac", "ogg"],
+        "invalid_formats": ["invalid", "mp4", "avi", ""],
     }

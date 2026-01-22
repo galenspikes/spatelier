@@ -15,37 +15,37 @@ def get_logger(
     name: Optional[str] = None,
     verbose: bool = False,
     log_file: Optional[Path] = None,
-    level: str = "INFO"
+    level: str = "INFO",
 ) -> "logger":
     """
     Get a configured logger instance.
-    
+
     Args:
         name: Logger name (optional)
         verbose: Enable verbose logging
         log_file: Path to log file (optional)
         level: Logging level
-    
+
     Returns:
         Configured logger instance
     """
     # Remove default handler
     logger.remove()
-    
+
     # Set log level
     log_level = "DEBUG" if verbose else level
-    
+
     # Console handler with colors
     logger.add(
         sys.stderr,
         level=log_level,
         format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
-               "<level>{level: <8}</level> | "
-               "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
-               "<level>{message}</level>",
+        "<level>{level: <8}</level> | "
+        "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
+        "<level>{message}</level>",
         colorize=True,
     )
-    
+
     # File handler (if specified)
     if log_file:
         log_file.parent.mkdir(parents=True, exist_ok=True)
@@ -57,22 +57,20 @@ def get_logger(
             retention="30 days",
             compression="zip",
         )
-    
+
     # Set the name attribute for compatibility
     if name:
         logger.name = name
-    
+
     return logger
 
 
 def setup_logging(
-    verbose: bool = False,
-    log_file: Optional[Path] = None,
-    level: str = "INFO"
+    verbose: bool = False, log_file: Optional[Path] = None, level: str = "INFO"
 ) -> None:
     """
     Set up global logging configuration.
-    
+
     Args:
         verbose: Enable verbose logging
         log_file: Path to log file (optional)

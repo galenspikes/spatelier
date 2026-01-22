@@ -5,14 +5,18 @@ Provides fixtures for video testing including mock video files,
 transcription data, and video processing scenarios.
 """
 
-import pytest
 import tempfile
 from pathlib import Path
-from typing import Generator, Dict, Any, List
+from typing import Any, Dict, Generator, List
 from unittest.mock import Mock, patch
 
+import pytest
+
 try:
-    from modules.video.transcription_service import TranscriptionService, TranscriptionStorage
+    from modules.video.transcription_service import (
+        TranscriptionService,
+        TranscriptionStorage,
+    )
 except ImportError:
     # Optional dependency - tests that need this will import it directly
     TranscriptionService = None
@@ -31,7 +35,7 @@ def mock_video_info():
         "duration": 120,
         "thumbnail": "https://example.com/thumb.jpg",
         "extractor_key": "youtube",
-        "webpage_url": "https://youtube.com/watch?v=test_video_123"
+        "webpage_url": "https://youtube.com/watch?v=test_video_123",
     }
 
 
@@ -54,8 +58,8 @@ def mock_transcription_data():
                     {"word": "is", "start": 0.8, "end": 1.0},
                     {"word": "a", "start": 1.0, "end": 1.1},
                     {"word": "test", "start": 1.1, "end": 1.5},
-                    {"word": "transcription", "start": 1.5, "end": 2.0}
-                ]
+                    {"word": "transcription", "start": 1.5, "end": 2.0},
+                ],
             },
             {
                 "id": 1,
@@ -70,13 +74,13 @@ def mock_transcription_data():
                     {"word": "segment", "start": 6.2, "end": 6.8},
                     {"word": "of", "start": 6.8, "end": 7.0},
                     {"word": "the", "start": 7.0, "end": 7.2},
-                    {"word": "transcription", "start": 7.2, "end": 8.0}
-                ]
-            }
+                    {"word": "transcription", "start": 7.2, "end": 8.0},
+                ],
+            },
         ],
         "text": "Hello, this is a test transcription. This is the second segment of the transcription.",
         "processing_time": 15.5,
-        "model_used": "whisper-base"
+        "model_used": "whisper-base",
     }
 
 
@@ -115,14 +119,14 @@ def video_processing_scenarios():
             "size_mb": 5,
             "format": "mp4",
             "has_audio": True,
-            "has_subtitles": False
+            "has_subtitles": False,
         },
         "long_video": {
             "duration": 3600,  # 1 hour
             "size_mb": 500,
-            "format": "mp4", 
+            "format": "mp4",
             "has_audio": True,
-            "has_subtitles": False
+            "has_subtitles": False,
         },
         "video_with_subs": {
             "duration": 120,
@@ -130,7 +134,7 @@ def video_processing_scenarios():
             "format": "mp4",
             "has_audio": True,
             "has_subtitles": True,
-            "subtitle_tracks": 2
+            "subtitle_tracks": 2,
         },
         "audio_only": {
             "duration": 180,
@@ -138,7 +142,7 @@ def video_processing_scenarios():
             "format": "mp4",
             "has_audio": True,
             "has_video": False,
-            "has_subtitles": False
+            "has_subtitles": False,
         },
         "corrupted_video": {
             "duration": 0,
@@ -146,62 +150,52 @@ def video_processing_scenarios():
             "format": "mp4",
             "has_audio": False,
             "has_subtitles": False,
-            "corrupted": True
-        }
+            "corrupted": True,
+        },
     }
 
 
 @pytest.fixture
 def mock_yt_dlp():
     """Mock yt-dlp for testing."""
-    with patch('yt_dlp.YoutubeDL') as mock_ydl:
+    with patch("yt_dlp.YoutubeDL") as mock_ydl:
         mock_instance = Mock()
         mock_ydl.return_value.__enter__.return_value = mock_instance
-        
+
         # Mock extract_info
         mock_instance.extract_info.return_value = {
             "id": "test_video_123",
             "title": "Test Video",
             "duration": 120,
-            "uploader": "Test Uploader"
+            "uploader": "Test Uploader",
         }
-        
+
         # Mock download
         mock_instance.download.return_value = None
-        
+
         yield mock_instance
 
 
 @pytest.fixture
 def mock_whisper_model():
     """Mock Whisper model for testing."""
-    with patch('faster_whisper.WhisperModel') as mock_model_class:
+    with patch("faster_whisper.WhisperModel") as mock_model_class:
         mock_model = Mock()
         mock_model_class.return_value = mock_model
-        
+
         # Mock transcribe method
         mock_model.transcribe.return_value = (
-            [
-                {
-                    "start": 0.0,
-                    "end": 5.0,
-                    "text": "Hello, this is a test."
-                }
-            ],
-            {
-                "language": "en",
-                "language_probability": 0.99,
-                "duration": 5.0
-            }
+            [{"start": 0.0, "end": 5.0, "text": "Hello, this is a test."}],
+            {"language": "en", "language_probability": 0.99, "duration": 5.0},
         )
-        
+
         yield mock_model
 
 
 @pytest.fixture
 def mock_ffmpeg():
     """Mock ffmpeg for testing."""
-    with patch('subprocess.run') as mock_run:
+    with patch("subprocess.run") as mock_run:
         mock_result = Mock()
         mock_result.returncode = 0
         mock_result.stdout = "ffmpeg output"
@@ -213,32 +207,30 @@ def mock_ffmpeg():
 @pytest.fixture
 def transcription_service_factory():
     """Factory for creating transcription services with different configurations."""
+
     def _create_service(
-        model_size: str = "base",
-        use_faster_whisper: bool = True,
-        verbose: bool = False
+        model_size: str = "base", use_faster_whisper: bool = True, verbose: bool = False
     ) -> TranscriptionService:
         return TranscriptionService(
             model_size=model_size,
             use_faster_whisper=use_faster_whisper,
-            verbose=verbose
+            verbose=verbose,
         )
+
     return _create_service
 
 
 @pytest.fixture
 def transcription_storage_factory():
     """Factory for creating transcription storage with different configurations."""
+
     def _create_storage(
-        mongodb_client=None,
-        database_name: str = "test_db",
-        verbose: bool = False
+        mongodb_client=None, database_name: str = "test_db", verbose: bool = False
     ) -> TranscriptionStorage:
         return TranscriptionStorage(
-            mongodb_client=mongodb_client,
-            database_name=database_name,
-            verbose=verbose
+            mongodb_client=mongodb_client, database_name=database_name, verbose=verbose
         )
+
     return _create_storage
 
 
@@ -250,28 +242,28 @@ def video_download_scenarios():
             "url": "https://youtube.com/watch?v=test123",
             "expected_file": "Test Video [test123].mp4",
             "expected_size": 1024 * 1024,  # 1MB
-            "should_succeed": True
+            "should_succeed": True,
         },
         "invalid_url": {
             "url": "https://invalid-url.com/video",
             "expected_file": None,
             "expected_size": 0,
-            "should_succeed": False
+            "should_succeed": False,
         },
         "private_video": {
             "url": "https://youtube.com/watch?v=private123",
             "expected_file": None,
             "expected_size": 0,
             "should_succeed": False,
-            "error": "Video is private"
+            "error": "Video is private",
         },
         "age_restricted": {
             "url": "https://youtube.com/watch?v=age_restricted123",
             "expected_file": None,
             "expected_size": 0,
             "should_succeed": False,
-            "error": "Video is age restricted"
-        }
+            "error": "Video is age restricted",
+        },
     }
 
 
@@ -288,19 +280,19 @@ def playlist_scenarios():
                 {"id": "video2", "title": "Video 2"},
                 {"id": "video3", "title": "Video 3"},
                 {"id": "video4", "title": "Video 4"},
-                {"id": "video5", "title": "Video 5"}
-            ]
+                {"id": "video5", "title": "Video 5"},
+            ],
         },
         "empty_playlist": {
             "url": "https://youtube.com/playlist?list=empty123",
             "title": "Empty Playlist",
             "video_count": 0,
-            "videos": []
+            "videos": [],
         },
         "large_playlist": {
             "url": "https://youtube.com/playlist?list=large123",
             "title": "Large Playlist",
             "video_count": 100,
-            "videos": [{"id": f"video{i}", "title": f"Video {i}"} for i in range(100)]
-        }
+            "videos": [{"id": f"video{i}", "title": f"Video {i}"} for i in range(100)],
+        },
     }

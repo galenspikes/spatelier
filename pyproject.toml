@@ -50,6 +50,9 @@ dependencies = [
     "ffmpeg-python>=0.2.0",
     "mutagen>=1.47.0",
     "pillow>=10.0.0",
+    # Transcription (core - always available)
+    "faster-whisper>=0.9.0",
+    "openai-whisper>=20231117",
     # Database (core)
     "sqlalchemy>=2.0.0",
     "alembic>=1.12.0",
@@ -78,12 +81,6 @@ analytics = [
     "plotly>=5.15.0",
 ]
 
-# Transcription (optional - uses faster-whisper by default, openai-whisper as fallback)
-transcription = [
-    "faster-whisper>=0.9.0",
-    "openai-whisper>=20231117",
-]
-
 # MongoDB support (optional - SQLite is primary)
 mongodb = [
     "pymongo>=4.5.0",
@@ -106,8 +103,6 @@ all = [
     "matplotlib>=3.7.0",
     "seaborn>=0.12.0",
     "plotly>=5.15.0",
-    "faster-whisper>=0.9.0",
-    "openai-whisper>=20231117",
     "pymongo>=4.5.0",
     "motor>=3.3.0",
     "beautifulsoup4>=4.12.0",

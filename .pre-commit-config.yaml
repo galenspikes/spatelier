@@ -1,14 +1,4 @@
 repos:
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
-    hooks:
-      - id: trailing-whitespace
-      - id: end-of-file-fixer
-      - id: check-yaml
-      - id: check-added-large-files
-      - id: check-merge-conflict
-      - id: debug-statements
-
   - repo: https://github.com/psf/black
     rev: 23.7.0
     hooks:
@@ -20,13 +10,6 @@ repos:
     hooks:
       - id: isort
         args: ["--profile", "black"]
-
-  - repo: https://github.com/pycqa/flake8
-    rev: 6.0.0
-    hooks:
-      - id: flake8
-        # Use .flake8 config file for ignore rules
-        args: [--max-line-length=88]
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.5.1

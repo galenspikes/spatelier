@@ -15,7 +15,7 @@ The file should contain a JSON object with this structure:
 {
   "installed": {
     "client_id": "your-client-id.apps.googleusercontent.com",
-    "project_id": "your-project-id", 
+    "project_id": "your-project-id",
     "auth_uri": "https://accounts.google.com/o/oauth2/auth",
     "token_uri": "https://oauth2.googleapis.com/token",
     "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
@@ -70,7 +70,7 @@ When you download from Google Cloud Console, you should get a file that looks li
     "client_id": "123456789-abcdefghijklmnop.apps.googleusercontent.com",
     "project_id": "my-youtube-project-12345",
     "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-    "token_uri": "https://oauth2.googleapis.com/token", 
+    "token_uri": "https://oauth2.googleapis.com/token",
     "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
     "client_secret": "GOCSPX-abcdefghijklmnopqrstuvwxyz",
     "redirect_uris": [
@@ -91,4 +91,3 @@ You should see:
 - "YouTube API client initialized with OAuth"
 - A browser window will open for Google login
 - After login, credentials will be saved for future use
-

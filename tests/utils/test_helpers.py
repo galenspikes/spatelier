@@ -6,12 +6,12 @@ for setup, teardown, and test data management.
 """
 
 import os
-import tempfile
 import shutil
+import tempfile
 import time
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
-from contextlib import contextmanager
 from unittest.mock import Mock, patch
 
 import pytest
@@ -20,21 +20,18 @@ import pytest
 def create_temp_file(
     content: str = "test content",
     suffix: str = ".txt",
-    directory: Optional[Path] = None
+    directory: Optional[Path] = None,
 ) -> Path:
     """Create a temporary file with specified content."""
     if directory is None:
         directory = Path(tempfile.gettempdir())
-    
+
     temp_file = tempfile.NamedTemporaryFile(
-        mode='w',
-        suffix=suffix,
-        dir=directory,
-        delete=False
+        mode="w", suffix=suffix, dir=directory, delete=False
     )
     temp_file.write(content)
     temp_file.close()
-    
+
     return Path(temp_file.name)
 
 
@@ -62,7 +59,7 @@ def temp_environment(**env_vars):
     for key, value in env_vars.items():
         original_env[key] = os.environ.get(key)
         os.environ[key] = str(value)
-    
+
     try:
         yield
     finally:
@@ -88,7 +85,7 @@ def wait_for_condition(
     condition_func,
     timeout: float = 5.0,
     interval: float = 0.1,
-    message: str = "Condition not met"
+    message: str = "Condition not met",
 ) -> bool:
     """Wait for a condition to be true within timeout."""
     start_time = time.time()
@@ -96,7 +93,7 @@ def wait_for_condition(
         if condition_func():
             return True
         time.sleep(interval)
-    
+
     raise AssertionError(f"{message} (timeout: {timeout}s)")
 
 
@@ -124,12 +121,14 @@ def assert_directory_exists(path: Union[str, Path], message: str = None) -> None
         raise AssertionError(msg)
 
 
-def assert_file_size(path: Union[str, Path], expected_size: int, tolerance: int = 0) -> None:
+def assert_file_size(
+    path: Union[str, Path], expected_size: int, tolerance: int = 0
+) -> None:
     """Assert that a file has the expected size within tolerance."""
     path = Path(path)
     if not path.exists():
         raise AssertionError(f"File does not exist: {path}")
-    
+
     actual_size = path.stat().st_size
     if abs(actual_size - expected_size) > tolerance:
         raise AssertionError(
@@ -142,7 +141,7 @@ def assert_file_content(path: Union[str, Path], expected_content: str) -> None:
     path = Path(path)
     if not path.exists():
         raise AssertionError(f"File does not exist: {path}")
-    
+
     actual_content = path.read_text()
     if actual_content != expected_content:
         raise AssertionError(
@@ -151,32 +150,29 @@ def assert_file_content(path: Union[str, Path], expected_content: str) -> None:
 
 
 def create_mock_file(
-    path: Union[str, Path],
-    size: int = 1024,
-    content: str = None
+    path: Union[str, Path], size: int = 1024, content: str = None
 ) -> Path:
     """Create a mock file with specified size and content."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     if content is not None:
         path.write_text(content)
     else:
         # Create file with specified size
-        with open(path, 'wb') as f:
-            f.write(b'0' * size)
-    
+        with open(path, "wb") as f:
+            f.write(b"0" * size)
+
     return path
 
 
 def create_mock_directory_structure(
-    base_path: Union[str, Path],
-    structure: Dict[str, Any]
+    base_path: Union[str, Path], structure: Dict[str, Any]
 ) -> Path:
     """Create a mock directory structure."""
     base_path = Path(base_path)
     base_path.mkdir(parents=True, exist_ok=True)
-    
+
     for name, content in structure.items():
         item_path = base_path / name
         if isinstance(content, dict):
@@ -186,80 +182,67 @@ def create_mock_directory_structure(
         else:
             # It's a file
             item_path.write_text(str(content))
-    
+
     return base_path
 
 
 def mock_database_operations():
     """Mock database operations for testing."""
     return patch.multiple(
-        'database.connection.DatabaseManager',
+        "database.connection.DatabaseManager",
         connect_sqlite=Mock(),
         connect_mongodb=Mock(),
         get_sqlite_session=Mock(),
         get_mongodb_client=Mock(),
-        close_connections=Mock()
+        close_connections=Mock(),
     )
 
 
 def mock_file_operations():
     """Mock file operations for testing."""
     return patch.multiple(
-        'pathlib.Path',
+        "pathlib.Path",
         exists=Mock(return_value=True),
         is_file=Mock(return_value=True),
         is_dir=Mock(return_value=False),
         stat=Mock(return_value=Mock(st_size=1024, st_mtime=time.time())),
         unlink=Mock(),
-        mkdir=Mock()
+        mkdir=Mock(),
     )
 
 
 def mock_network_operations():
     """Mock network operations for testing."""
     return patch.multiple(
-        'requests.get',
+        "requests.get",
         return_value=Mock(
-            status_code=200,
-            json=Mock(return_value={}),
-            content=b'test content'
-        )
+            status_code=200, json=Mock(return_value={}), content=b"test content"
+        ),
     )
 
 
-def create_test_config(
-    **overrides
-) -> Dict[str, Any]:
+def create_test_config(**overrides) -> Dict[str, Any]:
     """Create a test configuration dictionary."""
     config = {
         "debug": True,
         "verbose": True,
-        "database": {
-            "sqlite_path": "/tmp/test.db",
-            "mongodb_database": "test_db"
-        },
+        "database": {"sqlite_path": "/tmp/test.db", "mongodb_database": "test_db"},
         "video": {
             "output_dir": "/tmp/test_videos",
             "transcribe": True,
-            "transcription_model": "base"
+            "transcription_model": "base",
         },
-        "audio": {
-            "output_dir": "/tmp/test_audio",
-            "format": "mp3",
-            "quality": "high"
-        },
-        "logging": {
-            "level": "DEBUG"
-        }
+        "audio": {"output_dir": "/tmp/test_audio", "format": "mp3", "quality": "high"},
+        "logging": {"level": "DEBUG"},
     }
-    
+
     # Apply overrides
     for key, value in overrides.items():
         if isinstance(value, dict) and key in config:
             config[key].update(value)
         else:
             config[key] = value
-    
+
     return config
 
 
@@ -278,9 +261,7 @@ def assert_logs_not_contain(logs: List[str], unexpected_messages: List[str]) -> 
 
 
 def create_mock_transcription_data(
-    text: str = "Test transcription",
-    duration: float = 10.0,
-    language: str = "en"
+    text: str = "Test transcription", duration: float = 10.0, language: str = "en"
 ) -> Dict[str, Any]:
     """Create mock transcription data for testing."""
     return {
@@ -296,19 +277,17 @@ def create_mock_transcription_data(
                 "words": [
                     {"word": word, "start": i * 0.5, "end": (i + 1) * 0.5}
                     for i, word in enumerate(text.split())
-                ]
+                ],
             }
         ],
         "text": text,
         "processing_time": 5.0,
-        "model_used": "whisper-base"
+        "model_used": "whisper-base",
     }
 
 
 def create_mock_video_info(
-    video_id: str = "test123",
-    title: str = "Test Video",
-    duration: int = 120
+    video_id: str = "test123", title: str = "Test Video", duration: int = 120
 ) -> Dict[str, Any]:
     """Create mock video information for testing."""
     return {
@@ -320,5 +299,5 @@ def create_mock_video_info(
         "duration": duration,
         "thumbnail": f"https://example.com/thumb_{video_id}.jpg",
         "extractor_key": "youtube",
-        "webpage_url": f"https://youtube.com/watch?v={video_id}"
+        "webpage_url": f"https://youtube.com/watch?v={video_id}",
     }
