@@ -137,21 +137,7 @@ log_and_echo -e "${GREEN}✅ Pre-release checks passed${NC}"
 log_plain "SUCCESS: Pre-release checks passed"
 log_and_echo ""
 
-# Create and push tag
-log_and_echo -e "${GREEN}📝 Creating tag ${TAG}...${NC}"
-log_plain "Creating git tag: ${TAG}"
-git tag -a "$TAG" -m "Release ${TAG}" 2>&1 | tee -a "$LOG_FILE"
-
-log_and_echo -e "${GREEN}📤 Pushing tag to origin...${NC}"
-log_plain "Pushing tag to origin"
-git push origin "$TAG" 2>&1 | tee -a "$LOG_FILE"
-
-log_and_echo ""
-log_and_echo -e "${GREEN}✅ Tag ${TAG} pushed successfully!${NC}"
-log_plain "SUCCESS: Tag pushed successfully"
-log_and_echo ""
-
-# Update Homebrew formula
+# Update Homebrew formula BEFORE tagging (so tag includes everything)
 log_and_echo -e "${GREEN}🍺 Updating Homebrew formula...${NC}"
 log_plain "Updating Homebrew formula"
 if [ -f "scripts/update_homebrew.sh" ]; then
@@ -168,11 +154,10 @@ if [ -f "scripts/update_homebrew.sh" ]; then
             log_plain "Committing formula update"
             git add Formula/spatelier.rb 2>&1 | tee -a "$LOG_FILE"
             git commit -m "Update Homebrew formula for ${TAG}" 2>&1 | tee -a "$LOG_FILE"
-            git push 2>&1 | tee -a "$LOG_FILE"
-            log_and_echo -e "${GREEN}✅ Formula update committed and pushed${NC}"
-            log_plain "SUCCESS: Formula update committed and pushed"
+            log_and_echo -e "${GREEN}✅ Formula update committed${NC}"
+            log_plain "SUCCESS: Formula update committed"
             
-            # Update tap repository if it exists
+            # Update tap repository if it exists (before tagging)
             TAP_REPO="../homebrew-spatelier"
             if [ -d "$TAP_REPO" ] && [ -d "$TAP_REPO/.git" ]; then
                 log_and_echo -e "${GREEN}🍺 Updating Homebrew tap repository...${NC}"
@@ -204,6 +189,21 @@ else
     log_and_echo -e "${YELLOW}Warning: update_homebrew.sh not found, skipping formula update${NC}"
     log_plain "WARNING: update_homebrew.sh not found"
 fi
+
+log_and_echo ""
+# Create and push tag AFTER formula update (so tag includes everything)
+log_and_echo -e "${GREEN}📝 Creating tag ${TAG}...${NC}"
+log_plain "Creating git tag: ${TAG}"
+git tag -a "$TAG" -m "Release ${TAG}" 2>&1 | tee -a "$LOG_FILE"
+
+log_and_echo -e "${GREEN}📤 Pushing tag and commits to origin...${NC}"
+log_plain "Pushing tag and commits to origin"
+git push origin "$TAG" 2>&1 | tee -a "$LOG_FILE"
+git push 2>&1 | tee -a "$LOG_FILE"
+
+log_and_echo ""
+log_and_echo -e "${GREEN}✅ Tag ${TAG} pushed successfully!${NC}"
+log_plain "SUCCESS: Tag pushed successfully"
 
 log_and_echo ""
 log_and_echo -e "${YELLOW}⏳ Waiting for GitHub Actions to create release...${NC}"
