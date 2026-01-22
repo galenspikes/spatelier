@@ -171,6 +171,30 @@ if [ -f "scripts/update_homebrew.sh" ]; then
             git push 2>&1 | tee -a "$LOG_FILE"
             log_and_echo -e "${GREEN}✅ Formula update committed and pushed${NC}"
             log_plain "SUCCESS: Formula update committed and pushed"
+            
+            # Update tap repository if it exists
+            TAP_REPO="../homebrew-spatelier"
+            if [ -d "$TAP_REPO" ] && [ -d "$TAP_REPO/.git" ]; then
+                log_and_echo -e "${GREEN}🍺 Updating Homebrew tap repository...${NC}"
+                log_plain "Updating tap repository at $TAP_REPO"
+                (
+                    cd "$TAP_REPO" || exit 1
+                    git pull 2>&1 | tee -a "$LOG_FILE"
+                    cp "../spatelier/Formula/spatelier.rb" "Formula/spatelier.rb" 2>&1 | tee -a "$LOG_FILE"
+                    if ! git diff --quiet Formula/spatelier.rb; then
+                        git add Formula/spatelier.rb 2>&1 | tee -a "$LOG_FILE"
+                        git commit -m "Update to ${TAG}" 2>&1 | tee -a "$LOG_FILE"
+                        git push 2>&1 | tee -a "$LOG_FILE"
+                        log_and_echo -e "${GREEN}✅ Tap repository updated${NC}"
+                        log_plain "SUCCESS: Tap repository updated"
+                    else
+                        log_and_echo -e "${YELLOW}No changes needed in tap repository${NC}"
+                    fi
+                ) || log_and_echo -e "${YELLOW}Warning: Could not update tap repository${NC}"
+            else
+                log_and_echo -e "${YELLOW}Tap repository not found at ${TAP_REPO}, skipping${NC}"
+                log_plain "INFO: Tap repository not found"
+            fi
         fi
     else
         log_and_echo -e "${YELLOW}Warning: Homebrew formula update failed, but continuing...${NC}"
