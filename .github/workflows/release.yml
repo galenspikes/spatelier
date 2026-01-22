@@ -77,4 +77,5 @@ jobs:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
         run: |
-          python -m twine upload dist/*
+          # Use --skip-existing to avoid errors if file was already uploaded
+          python -m twine upload --skip-existing dist/*
