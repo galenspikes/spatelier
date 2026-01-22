@@ -13,14 +13,12 @@ from unittest.mock import Mock, patch
 import pytest
 
 try:
-    from modules.video.transcription_service import (
-        TranscriptionService,
-        TranscriptionStorage,
-    )
+    from database.transcription_storage import SQLiteTranscriptionStorage
+    from modules.video.services.transcription_service import TranscriptionService
 except ImportError:
     # Optional dependency - tests that need this will import it directly
     TranscriptionService = None
-    TranscriptionStorage = None
+    SQLiteTranscriptionStorage = None
 
 
 @pytest.fixture
@@ -209,13 +207,13 @@ def transcription_service_factory():
     """Factory for creating transcription services with different configurations."""
 
     def _create_service(
-        model_size: str = "base", use_faster_whisper: bool = True, verbose: bool = False
+        model_size: str = "base", verbose: bool = False
     ) -> TranscriptionService:
-        return TranscriptionService(
-            model_size=model_size,
-            use_faster_whisper=use_faster_whisper,
-            verbose=verbose,
-        )
+        from core.config import Config
+
+        config = Config()
+        config.transcription.default_model = model_size
+        return TranscriptionService(config, verbose=verbose)
 
     return _create_service
 

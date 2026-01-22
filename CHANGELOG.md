@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-01-22
+
+### Changed
+- faster-whisper is now a core dependency (always installed by default)
+- Transcription is available by default without optional extras
+
+### Removed
+- Removed openai-whisper support completely (unsupported)
+- Removed `use_faster_whisper` config option (always uses faster-whisper)
+- Removed `[transcription]` optional extra (faster-whisper is in core dependencies)
+- Removed old `modules/video/transcription_service.py` file (replaced by `services/transcription_service.py`)
+- Removed MongoDB integration test (MongoDB not used)
+
 ## [0.3.1] - 2026-01-22
 
 ### Fixed

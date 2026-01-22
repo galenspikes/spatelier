@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 try:
-    import whisper
     from faster_whisper import WhisperModel
 
     WHISPER_AVAILABLE = True
@@ -29,9 +28,9 @@ _MODEL_CACHE = {}
 
 class TranscriptionService(BaseService):
     """
-    Unified transcription service using OpenAI Whisper.
+    Unified transcription service using faster-whisper.
 
-    Supports both openai-whisper and faster-whisper for different speed/accuracy needs.
+    Uses faster-whisper (optimized Whisper implementation) for fast transcription.
     Includes database integration, analytics tracking, and subtitle embedding.
     """
 
@@ -48,7 +47,6 @@ class TranscriptionService(BaseService):
 
         # Transcription configuration
         self.model_size = self.config.transcription.default_model
-        self.use_faster_whisper = self.config.transcription.use_faster_whisper
         self.device = self.config.transcription.device
         self.compute_type = self.config.transcription.compute_type
 
@@ -57,42 +55,47 @@ class TranscriptionService(BaseService):
         self.transcription_storage = None
 
     def _initialize_transcription(self, model_size: Optional[str] = None):
-        """Initialize transcription service if not already done."""
-        if self.model is None:
-            if not WHISPER_AVAILABLE:
-                raise ImportError(
-                    "Whisper dependencies not available. Install with: pip install spatelier[transcription]"
-                )
+        """Initialize transcription service if not already done.
 
-            model_size = model_size or self.model_size
+        Returns:
+            True if transcription is available and initialized, False otherwise
+        """
+        # If model already initialized, return True
+        if self.model is not None:
+            return True
 
-            # Load model with caching
-            cache_key = f"{model_size}_{self.device}_{self.compute_type}_{self.use_faster_whisper}"
+        if not WHISPER_AVAILABLE:
+            self.logger.error(
+                "Transcription dependencies not available. This should not happen - faster-whisper is a core dependency."
+            )
+            return False
 
-            if cache_key in _MODEL_CACHE:
-                self.logger.info(f"Using cached Whisper model: {model_size}")
-                self.model = _MODEL_CACHE[cache_key]
-            else:
-                if self.use_faster_whisper:
-                    self.logger.info(f"Loading faster-whisper model: {model_size}")
-                    self.model = WhisperModel(
-                        model_size, device=self.device, compute_type=self.compute_type
-                    )
-                else:
-                    self.logger.info(f"Loading openai-whisper model: {model_size}")
-                    self.model = whisper.load_model(model_size)
+        model_size = model_size or self.model_size
 
-                _MODEL_CACHE[cache_key] = self.model
-                self.logger.info("Whisper model loaded and cached successfully")
+        # Load model with caching
+        cache_key = f"{model_size}_{self.device}_{self.compute_type}"
 
-            # Initialize storage
-            if self.transcription_storage is None:
-                if self.db_manager is None:
-                    self.db_manager = self.db_factory.get_db_manager()
+        if cache_key in _MODEL_CACHE:
+            self.logger.info(f"Using cached Whisper model: {model_size}")
+            self.model = _MODEL_CACHE[cache_key]
+        else:
+            self.logger.info(f"Loading faster-whisper model: {model_size}")
+            self.model = WhisperModel(
+                model_size, device=self.device, compute_type=self.compute_type
+            )
+            _MODEL_CACHE[cache_key] = self.model
+            self.logger.info("Whisper model loaded and cached successfully")
 
-                session = self.db_manager.get_sqlite_session()
-                self.transcription_storage = SQLiteTranscriptionStorage(session)
-                self.logger.info("SQLite transcription storage initialized")
+        # Initialize storage
+        if self.transcription_storage is None:
+            if self.db_manager is None:
+                self.db_manager = self.db_factory.get_db_manager()
+
+            session = self.db_manager.get_sqlite_session()
+            self.transcription_storage = SQLiteTranscriptionStorage(session)
+            self.logger.info("SQLite transcription storage initialized")
+
+        return True
 
     def transcribe_video(
         self,
@@ -140,7 +143,11 @@ class TranscriptionService(BaseService):
 
             # Initialize transcription service
             effective_model_size = model_size or self.model_size
-            self._initialize_transcription(effective_model_size)
+            if not self._initialize_transcription(effective_model_size):
+                self.logger.error(
+                    "Transcription dependencies not available. This should not happen - faster-whisper is a core dependency."
+                )
+                return False
 
             # Get language
             language = language or self.config.transcription.default_language
@@ -159,10 +166,7 @@ class TranscriptionService(BaseService):
             self.logger.info(f"Starting transcription of: {video_path}")
             start_time = time.time()
 
-            if self.use_faster_whisper:
-                result = self._transcribe_with_faster_whisper(video_path, language)
-            else:
-                result = self._transcribe_with_openai_whisper(video_path, language)
+            result = self._transcribe_with_faster_whisper(video_path, language)
 
             processing_time = time.time() - start_time
             result["processing_time"] = processing_time
@@ -244,31 +248,6 @@ class TranscriptionService(BaseService):
             "duration": info.duration,
         }
 
-    def _transcribe_with_openai_whisper(self, video_path: Path, language: str) -> Dict:
-        """Transcribe using openai-whisper (more accurate, slower)."""
-        result = self.model.transcribe(
-            str(video_path), language=language, word_timestamps=True
-        )
-
-        # Convert to our format
-        transcription_segments = []
-        for segment in result["segments"]:
-            transcription_segments.append(
-                {
-                    "start": segment["start"],
-                    "end": segment["end"],
-                    "text": segment["text"].strip(),
-                    "confidence": segment.get("avg_logprob", 0.0),
-                }
-            )
-
-        return {
-            "segments": transcription_segments,
-            "language": result.get("language", language),
-            "language_probability": 1.0,  # openai-whisper doesn't provide this
-            "duration": result.get("duration", 0.0),
-        }
-
     def embed_subtitles(
         self,
         video_path: Union[str, Path],
@@ -314,7 +293,12 @@ class TranscriptionService(BaseService):
                     media_file_id = created_media.id
 
             # Initialize transcription service
-            self._initialize_transcription()
+            if not self._initialize_transcription():
+                self.logger.warning(
+                    "Subtitle embedding skipped: transcription dependencies not available. "
+                    "This should not happen - faster-whisper is a core dependency."
+                )
+                return False
 
             # Get transcription data
             transcription_data = self._get_transcription_data(video_path, media_file_id)
@@ -379,14 +363,17 @@ class TranscriptionService(BaseService):
                 }
 
         # If not in database, transcribe now
+        if not WHISPER_AVAILABLE:
+            self.logger.error(
+                "Cannot transcribe: dependencies not available. "
+                "This should not happen - faster-whisper is a core dependency."
+            )
+            return None
+
         self.logger.info("Transcription not found in database, transcribing now...")
         language = self.config.transcription.default_language
 
-        if self.use_faster_whisper:
-            result = self._transcribe_with_faster_whisper(video_path, language)
-        else:
-            result = self._transcribe_with_openai_whisper(video_path, language)
-
+        result = self._transcribe_with_faster_whisper(video_path, language)
         return result
 
     def _embed_subtitles_into_video(
@@ -486,6 +473,6 @@ class TranscriptionService(BaseService):
         """Get information about the current model."""
         return {
             "model_size": self.model_size,
-            "use_faster_whisper": self.use_faster_whisper,
+            "library": "faster-whisper",
             "available_models": self.get_available_models(),
         }

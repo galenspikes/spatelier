@@ -54,7 +54,6 @@ class TestTranscriptionService:
             # Create a config with transcription settings
             config = Config()
             config.transcription.default_model = "large"
-            config.transcription.use_faster_whisper = True
 
             # Mock database service
             from unittest.mock import Mock

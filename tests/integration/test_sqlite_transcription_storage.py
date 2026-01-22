@@ -536,8 +536,6 @@ class TestSQLiteTranscriptionStorageIntegration:
         with patch(
             "modules.video.services.transcription_service.WHISPER_AVAILABLE", True
         ):
-            transcription_service.use_faster_whisper = True
-
             # Mock the model's transcribe method to return proper format
             mock_segments = [
                 type(
