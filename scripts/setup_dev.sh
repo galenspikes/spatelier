@@ -17,9 +17,31 @@ fi
 echo "✅ Python version: $python_version"
 
 # Create virtual environment if it doesn't exist
+# IMPORTANT: Use Homebrew Python to avoid dependency issues with pyenv Python
+# pyenv Python can break when Homebrew is updated/reinstalled because it links
+# against Homebrew libraries (like gettext) that may be removed or moved.
 if [ ! -d "venv" ]; then
     echo "📦 Creating virtual environment..."
-    python3 -m venv venv
+    if [ -f "/opt/homebrew/opt/python@3.12/bin/python3.12" ]; then
+        echo "   ✓ Using Homebrew Python 3.12 (recommended - more stable)"
+        /opt/homebrew/opt/python@3.12/bin/python3.12 -m venv venv
+    elif command -v python3.12 &> /dev/null; then
+        PYTHON_PATH=$(which python3.12)
+        if [[ "$PYTHON_PATH" == *".pyenv"* ]]; then
+            echo "   ⚠️  WARNING: Detected pyenv Python. This can break when Homebrew is updated."
+            echo "   Consider using Homebrew Python instead: brew install python@3.12"
+            read -p "   Continue with pyenv Python? (y/N) " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                exit 1
+            fi
+        fi
+        echo "   Using system Python 3.12"
+        python3.12 -m venv venv
+    else
+        echo "   Using system Python 3"
+        python3 -m venv venv
+    fi
 fi
 
 # Activate virtual environment
