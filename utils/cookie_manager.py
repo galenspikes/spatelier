@@ -160,7 +160,8 @@ class CookieManager:
         if system == "windows" and isinstance(path, Path):
             try:
                 path = Path(str(path).format(**os.environ))
-            except:
+            except (KeyError, ValueError):
+                # If environment variable is missing or format string is invalid, use original path
                 pass
         
         if path and path.exists():
