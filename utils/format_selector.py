@@ -27,6 +27,6 @@ def get_format_selector(quality: str, format: str) -> str:
             height = quality.replace("p", "")
             # Add fallback chain with height constraint
             return f"best[height<={height}][ext={format}]/bestvideo[height<={height}]+bestaudio/best[height<={height}]/best"
-        except Exception:
+        except (AttributeError, ValueError):
             # Fallback to simpler selector if parsing fails
             return f"best[ext={format}]/bestvideo+bestaudio/best"

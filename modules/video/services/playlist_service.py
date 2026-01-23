@@ -4,6 +4,7 @@ Playlist service.
 This module provides focused playlist management functionality.
 """
 
+import re
 import shutil
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -365,8 +366,6 @@ class PlaylistService(BaseService):
     def _extract_video_id_from_path(self, video_path: Path) -> str:
         """Extract video ID from file path."""
         # Look for [video_id] pattern in filename
-        import re
-
         match = re.search(r"\[([a-zA-Z0-9_-]{11})\]", video_path.name)
         if match:
             return match.group(1)
@@ -374,8 +373,6 @@ class PlaylistService(BaseService):
 
     def _sanitize_filename(self, filename: str) -> str:
         """Sanitize filename for filesystem."""
-        import re
-
         # Remove or replace invalid characters
         filename = re.sub(r'[<>:"/\\|?*]', "_", filename)
         # Limit length
