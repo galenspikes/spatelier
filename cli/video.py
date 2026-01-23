@@ -467,11 +467,16 @@ def download_enhanced(
             result = download_result
 
         if result.success:
+            method = (
+                result.metadata.get("download_method", "yt-dlp")
+                if result.metadata
+                else "yt-dlp"
+            )
             console.print(
                 Panel(
                     f"[green]✓[/green] Video downloaded successfully!\n"
                     f"Output: {result.output_path}\n"
-                    f"Method: {result.metadata.get('download_method', 'yt-dlp') if result.metadata else 'yt-dlp'}",
+                    f"Method: {method}",
                     title="Success",
                     border_style="green",
                 )
@@ -550,13 +555,16 @@ def download_playlist(
 
         if result.is_successful():
             metadata = result.metadata or {}
+            transcription_status = (
+                "Enabled" if metadata.get("transcription_enabled") else "Disabled"
+            )
             console.print(
                 Panel(
                     f"[green]✓[/green] Playlist downloaded successfully!\n"
                     f"Output: {result.output_path}\n"
                     f"Playlist: {metadata.get('playlist_title', 'Unknown')}\n"
                     f"Videos: {metadata.get('successful_downloads', 0)}/{metadata.get('total_videos', 0)}\n"
-                    f"Transcription: {'Enabled' if metadata.get('transcription_enabled') else 'Disabled'}",
+                    f"Transcription: {transcription_status}",
                     title="Success",
                     border_style="green",
                 )

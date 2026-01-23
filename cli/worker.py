@@ -371,9 +371,10 @@ def list_jobs(
             return
 
         # Show summary for table format
+        summary_text = f"📊 Total Jobs: {len(jobs)} | {' | '.join(summary_parts)}"
         console.print(
             Panel(
-                f"📊 Total Jobs: {len(jobs)} | " + " | ".join(summary_parts),
+                summary_text,
                 title="Job Queue Summary",
                 border_style="green",
             )
