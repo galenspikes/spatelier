@@ -15,17 +15,9 @@ class Spatelier < Formula
   depends_on "deno"  # Required by yt-dlp for YouTube SABR streaming
 
   def install
-    python3 = "python3.12"
-    venv = virtualenv_create(libexec, python3)
-
-    # Install pip, setuptools, and wheel using ensurepip (bundled with Python)
+    venv = virtualenv_create(libexec, "python3.12")
     system libexec/"bin/python", "-m", "ensurepip", "--upgrade"
-
-    # Install the package with all dependencies from pyproject.toml
-    # Installing from source directory should automatically install dependencies
-    system libexec/"bin/pip", "install", buildpath
-
-    # Install entry point script
+    system libexec/"bin/pip", "install", "-v", buildpath
     bin.install_symlink libexec/"bin/spatelier"
   end
 
