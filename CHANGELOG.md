@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.7] - 2026-01-22
+
+### Fixed
+- Homebrew installation: Fixed pip installation by using `ensurepip` (bundled with Python) instead of invalid `--python` option, ensuring pip, setuptools, and wheel are properly installed in venv before package installation
+
 ## [0.3.6] - 2026-01-22
 
 ### Fixed
