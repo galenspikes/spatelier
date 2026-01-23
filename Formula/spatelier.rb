@@ -16,7 +16,9 @@ class Spatelier < Formula
 
   def install
     venv = virtualenv_create(libexec, "python3.12")
-    system libexec/"bin/python", "-m", "ensurepip", "--upgrade"
+    # Install pip using get-pip.py (ensurepip finds system pip with --system-site-packages)
+    system "curl", "-sSL", "https://bootstrap.pypa.io/get-pip.py", "-o", "/tmp/get-pip.py"
+    system libexec/"bin/python", "/tmp/get-pip.py", "--isolated", "--disable-pip-version-check"
     system libexec/"bin/pip", "install", "-v", buildpath
     bin.install_symlink libexec/"bin/spatelier"
   end
