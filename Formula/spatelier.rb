@@ -19,10 +19,10 @@ class Spatelier < Formula
     venv = virtualenv_create(libexec, python3)
 
     # Install the package with all dependencies from pyproject.toml
-    system libexec/"bin/pip", "install", "-v", buildpath
+    venv.pip_install buildpath
 
     # Install entry point script
-    bin.install libexec/"bin/spatelier"
+    bin.install_symlink libexec/"bin/spatelier"
   end
 
   test do

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.5] - 2026-01-22
+
+### Fixed
+- Homebrew installation: Fixed formula to use `venv.pip_install` instead of calling pip directly, ensuring pip is properly installed in the virtualenv
+
 ## [0.3.4] - 2026-01-22
 
 ### Fixed
