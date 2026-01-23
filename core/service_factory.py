@@ -5,7 +5,7 @@ This module provides a single factory for creating and managing all services,
 eliminating duplication and ensuring consistent service lifecycle management.
 """
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional, Type
 
 from sqlalchemy.orm import Session
 
@@ -257,11 +257,13 @@ class ServiceFactory(IServiceFactory):
         self.close_all_services()
 
     # Context manager support
-    def __enter__(self):
+    def __enter__(self) -> "ServiceFactory":
         """Context manager entry."""
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self, exc_type: Optional[Type[Exception]], exc_val: Optional[Exception], exc_tb: Optional[Any]
+    ) -> None:
         """Context manager exit."""
         self.close_all_services()
 

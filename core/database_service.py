@@ -5,7 +5,7 @@ This module provides the database service factory, separated from the main
 service factory to avoid circular imports.
 """
 
-from typing import Optional
+from typing import Any, Optional, Type
 
 from sqlalchemy.orm import Session
 
@@ -107,10 +107,12 @@ class DatabaseServiceFactory:
         self._repositories = None
         self.logger.info("Database connections closed")
 
-    def __enter__(self):
+    def __enter__(self) -> "RepositoryContainer":
         """Context manager entry."""
         return self.initialize()
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self, exc_type: Optional[Type[Exception]], exc_val: Optional[Exception], exc_tb: Optional[Any]
+    ) -> None:
         """Context manager exit."""
         self.close_connections()
