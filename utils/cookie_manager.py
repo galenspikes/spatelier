@@ -51,7 +51,7 @@ class CookieManager:
             # Use config's data directory if available
             try:
                 data_dir = get_default_data_dir()
-            except:
+            except (OSError, PermissionError):
                 data_dir = Path.home() / ".local" / "share" / "spatelier"
         else:
             data_dir = get_default_data_dir()
