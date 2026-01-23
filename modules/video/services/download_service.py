@@ -19,6 +19,7 @@ from database.models import MediaType, ProcessingStatus
 from modules.video.fallback_extractor import FallbackExtractor
 from utils.cookie_manager import CookieManager
 from utils.helpers import get_file_hash, get_file_type, safe_filename
+from utils.ytdlp_auth_handler import YtDlpAuthHandler
 
 
 class VideoDownloadService(BaseService):
@@ -58,6 +59,8 @@ class VideoDownloadService(BaseService):
 
         # Initialize cookie manager
         self.cookie_manager = CookieManager(config, verbose=verbose, logger=self.logger)
+        # Initialize auth error handler
+        self.auth_handler = YtDlpAuthHandler(self.cookie_manager, logger=self.logger)
 
     def download_video(
         self, url: str, output_path: Optional[Union[str, Path]] = None, **kwargs
@@ -283,15 +286,14 @@ class VideoDownloadService(BaseService):
         Automatically refreshes cookies and retries if download fails due to
         authentication issues with age-restricted content.
         """
-        try:
-            # Build yt-dlp options
-            ydl_opts = self._build_ydl_opts(output_path, **kwargs)
+        # Build yt-dlp options
+        ydl_opts = self._build_ydl_opts(output_path, **kwargs)
+        output_path.mkdir(parents=True, exist_ok=True)
 
-            output_path.mkdir(parents=True, exist_ok=True)
+        import yt_dlp
 
-            # Execute download
-            import yt_dlp
-
+        def download_operation():
+            """Inner function for download operation that can be retried."""
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
                 downloaded_file = self._resolve_downloaded_path(ydl, info)
@@ -306,51 +308,17 @@ class VideoDownloadService(BaseService):
             # But validate it matches the expected video ID to avoid picking up old files
             return self._validate_fallback_file(output_path, url)
 
+        try:
+            # Try download with automatic auth retry
+            result = self.auth_handler.execute_with_auth_retry(
+                download_operation,
+                operation_name="video download",
+                ydl_opts=ydl_opts,
+            )
+            return result
         except Exception as e:
-            error_msg = str(e)
-            # Check if this is a cookie/authentication error
-            if any(
-                keyword in error_msg.lower()
-                for keyword in ["sign in", "age", "cookies", "authentication"]
-            ):
-                self.logger.warning(
-                    "Download failed due to authentication - attempting to get cookies..."
-                )
-                # Try to get cookies (uses cache if valid, otherwise refreshes)
-                cookie_file = self.cookie_manager.get_youtube_cookies()
-                if cookie_file:
-                    self.logger.info("Retrying download with cookies...")
-                    # Retry the download with cookie file
-                    try:
-                        ydl_opts = self._build_ydl_opts(output_path, **kwargs)
-                        # Use the cookie file instead of cookies_from_browser
-                        ydl_opts["cookies"] = cookie_file
-                        if "cookies_from_browser" in ydl_opts:
-                            del ydl_opts["cookies_from_browser"]
-
-                        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                            info = ydl.extract_info(url, download=True)
-                            downloaded_file = self._resolve_downloaded_path(ydl, info)
-                            if (
-                                downloaded_file
-                                and downloaded_file.exists()
-                                and downloaded_file.stat().st_size > 0
-                            ):
-                                return downloaded_file
-
-                        # Validate fallback file matches video ID
-                        return self._validate_fallback_file(output_path, url)
-                    except Exception as retry_error:
-                        self.logger.error(
-                            f"Download failed after cookie refresh: {retry_error}"
-                        )
-                        return None
-                else:
-                    self.logger.error(f"yt-dlp download failed: {e}")
-                    return None
-            else:
-                self.logger.error(f"yt-dlp download failed: {e}")
-                return self._validate_fallback_file(output_path, url)
+            self.logger.error(f"yt-dlp download failed: {e}")
+            return self._validate_fallback_file(output_path, url)
 
 
     def _resolve_downloaded_path(

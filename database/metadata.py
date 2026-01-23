@@ -18,6 +18,7 @@ from core.logger import get_logger
 from database.models import DownloadSource, MediaFile
 from database.repository import MediaFileRepository
 from utils.cookie_manager import CookieManager
+from utils.ytdlp_auth_handler import YtDlpAuthHandler
 
 
 class MetadataExtractor:
@@ -39,6 +40,7 @@ class MetadataExtractor:
         self.verbose = verbose
         self.logger = get_logger("MetadataExtractor", verbose=verbose)
         self.cookie_manager = CookieManager(config, verbose=verbose, logger=self.logger)
+        self.auth_handler = YtDlpAuthHandler(self.cookie_manager, logger=self.logger)
 
     def extract_youtube_metadata(self, url: str) -> Dict[str, Any]:
         """
@@ -50,72 +52,39 @@ class MetadataExtractor:
         Returns:
             Dictionary with extracted metadata
         """
-        try:
-            self.logger.info(f"Extracting YouTube metadata from: {url}")
+        self.logger.info(f"Extracting YouTube metadata from: {url}")
 
-            # Use yt-dlp Python package to get metadata without downloading
-            import yt_dlp
+        # Use yt-dlp Python package to get metadata without downloading
+        import yt_dlp
 
-            ydl_opts = {
-                "quiet": True,
-                "no_playlist": True,
-            }
+        ydl_opts = {
+            "quiet": True,
+            "no_playlist": True,
+        }
 
-            # Automatically try to use cookies from browser for age-restricted content
-            # Try multiple browsers in order - yt-dlp will use the first available one
-            # On macOS, Chrome is more reliable than Safari for cookie extraction
-            import platform
+        # Automatically try to use cookies from browser for age-restricted content
+        browsers = self.cookie_manager.get_browser_list()
+        ydl_opts["cookies_from_browser"] = browsers
+        if self.verbose:
+            self.logger.info(f"Attempting to use cookies from browsers: {browsers}")
 
-            system = platform.system().lower()
-            if system == "darwin":  # macOS - prioritize Chrome over Safari
-                browsers = ("chrome", "safari", "firefox", "edge")
-            else:
-                browsers = ("chrome", "firefox", "safari", "edge")
-            ydl_opts["cookies_from_browser"] = browsers
-            if self.verbose:
-                self.logger.info(f"Attempting to use cookies from browsers: {browsers}")
-
+        def extract_operation():
+            """Inner function for metadata extraction that can be retried."""
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 metadata = ydl.extract_info(url, download=False)
                 return self._parse_youtube_metadata(metadata)
+
+        try:
+            # Try extraction with automatic auth retry
+            result = self.auth_handler.execute_with_auth_retry(
+                extract_operation,
+                operation_name="metadata extraction",
+                ydl_opts=ydl_opts,
+            )
+            return result if result is not None else {}
         except Exception as e:
-            error_msg = str(e)
-            # Check if this is a cookie/authentication error
-            if any(
-                keyword in error_msg.lower()
-                for keyword in ["sign in", "age", "cookies", "authentication"]
-            ):
-                self.logger.warning(
-                    "Metadata extraction failed due to authentication - attempting to get cookies..."
-                )
-                # Try to get cookies (uses cache if valid, otherwise refreshes)
-                cookie_file = self.cookie_manager.get_youtube_cookies()
-                if cookie_file:
-                    self.logger.info(
-                        "Retrying metadata extraction with cookies..."
-                    )
-                    # Retry the extraction with cookie file
-                    try:
-                        # Use the cookie file instead of cookies_from_browser
-                        ydl_opts["cookies"] = cookie_file
-                        if "cookies_from_browser" in ydl_opts:
-                            del ydl_opts["cookies_from_browser"]
-
-                        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                            metadata = ydl.extract_info(url, download=False)
-
-                        return self._parse_youtube_metadata(metadata)
-                    except Exception as retry_error:
-                        self.logger.error(
-                            f"Metadata extraction failed after cookie refresh: {retry_error}"
-                        )
-                        return {}
-                else:
-                    self.logger.error(f"Metadata extraction failed: {e}")
-                    return {}
-            else:
-                self.logger.error(f"Metadata extraction failed: {e}")
-                return {}
+            self.logger.error(f"Metadata extraction failed: {e}")
+            return {}
 
 
     def extract_file_metadata(self, file_path: Union[str, Path]) -> Dict[str, Any]:
