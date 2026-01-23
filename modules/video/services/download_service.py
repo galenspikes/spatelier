@@ -461,7 +461,11 @@ class VideoDownloadService(BaseService):
     def _resolve_downloaded_path(
         self, ydl, info: Optional[Dict[str, Any]]
     ) -> Optional[Path]:
-        """Resolve downloaded file path from yt-dlp info."""
+        """Resolve downloaded file path from yt-dlp info.
+        
+        Handles cases where prepare_filename() might not return the correct path,
+        such as when video and audio are merged, or when the file path doesn't exist yet.
+        """
         if not info:
             return None
 
@@ -474,7 +478,54 @@ class VideoDownloadService(BaseService):
         if not isinstance(info, dict):
             return None
 
-        return Path(ydl.prepare_filename(info))
+        try:
+            # Try to get the filename from yt-dlp
+            prepared_path = ydl.prepare_filename(info)
+            file_path = Path(prepared_path)
+            
+            # Check if the file exists and is valid
+            if file_path.exists() and file_path.stat().st_size > 0:
+                return file_path
+            
+            # If prepare_filename() path doesn't exist, try to find the actual downloaded file
+            # This handles cases where video+audio are merged or file is in a different location
+            output_dir = file_path.parent
+            if output_dir.exists():
+                # Look for files matching the expected pattern (title + video ID)
+                video_id = info.get("id")
+                title = info.get("title", "")
+                
+                if video_id:
+                    # Try to find file with video ID in name
+                    for ext in self.config.video_extensions:
+                        pattern = f"*{video_id}*{ext}"
+                        matches = list(output_dir.glob(pattern))
+                        if matches:
+                            # Return the most recently modified matching file
+                            valid_files = [f for f in matches if f.is_file() and f.stat().st_size > 0]
+                            if valid_files:
+                                return max(valid_files, key=lambda p: p.stat().st_mtime)
+                
+                # Fallback: find most recently modified video file in output directory
+                # This is a last resort if we can't match by video ID
+                candidates = []
+                for ext in self.config.video_extensions:
+                    candidates.extend(output_dir.glob(f"*{ext}"))
+                
+                valid_candidates = [f for f in candidates if f.is_file() and f.stat().st_size > 0]
+                if valid_candidates:
+                    # Return most recent file, but log a warning
+                    latest = max(valid_candidates, key=lambda p: p.stat().st_mtime)
+                    self.logger.warning(
+                        f"Could not resolve exact file path, using most recent file: {latest.name}"
+                    )
+                    return latest
+            
+        except Exception as e:
+            self.logger.warning(f"Error resolving downloaded path: {e}")
+            return None
+        
+        return None
 
     def _find_latest_download(self, output_path: Path) -> Optional[Path]:
         """Find the most recently modified downloaded video file."""
