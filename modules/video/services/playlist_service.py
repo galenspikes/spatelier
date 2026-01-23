@@ -348,20 +348,9 @@ class PlaylistService(BaseService):
 
     def _get_format_selector(self, quality: str, format: str) -> str:
         """Get format selector for yt-dlp with fallbacks for YouTube issues."""
-        if quality == "best":
-            # Add fallback chain: preferred format -> any format -> best available
-            return f"best[ext={format}]/bestvideo[ext={format}]+bestaudio/best[ext={format}]/best"
-        elif quality == "worst":
-            return f"worst[ext={format}]/worst"
-        else:
-            # Extract numeric part from quality (e.g., "1080p" -> "1080")
-            try:
-                height = quality.replace("p", "")
-                # Add fallback chain with height constraint
-                return f"best[height<={height}][ext={format}]/bestvideo[height<={height}]+bestaudio/best[height<={height}]/best"
-            except:
-                # Fallback to simpler selector if parsing fails
-                return f"best[ext={format}]/bestvideo+bestaudio/best"
+        from utils.format_selector import get_format_selector
+
+        return get_format_selector(quality, format)
 
     def _find_playlist_videos(self, directory: Path) -> List[Path]:
         """Find downloaded video files in playlist directory."""
