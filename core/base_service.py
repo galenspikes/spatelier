@@ -8,12 +8,10 @@ in service initialization patterns across all service classes.
 from abc import ABC
 from typing import Any, Optional
 
-from core.database_service import DatabaseServiceFactory, RepositoryContainer
-from database.connection import DatabaseManager
-
 from core.config import Config
-from core.database_service import DatabaseServiceFactory
+from core.database_service import DatabaseServiceFactory, RepositoryContainer
 from core.logger import get_logger
+from database.connection import DatabaseManager
 
 
 class BaseService(ABC):
