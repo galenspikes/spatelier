@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.6] - 2026-01-22
+
+### Fixed
+- Homebrew installation: Fixed formula to explicitly install pip, setuptools, and wheel before installing package, ensuring dependencies from pyproject.toml are properly installed
+
 ## [0.3.5] - 2026-01-22
 
 ### Fixed

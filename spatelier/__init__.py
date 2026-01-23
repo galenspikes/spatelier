@@ -10,7 +10,7 @@ import importlib
 import sys
 from typing import Iterable
 
-__version__ = "0.3.5"
+__version__ = "0.3.6"
 __author__ = "Galen Spikes"
 __email__ = "galenspikes@gmail.com"
 

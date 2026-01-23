@@ -18,8 +18,12 @@ class Spatelier < Formula
     python3 = "python3.12"
     venv = virtualenv_create(libexec, python3)
 
+    # Install pip in the venv (virtualenv_create uses --without-pip by default)
+    system python3, "-m", "pip", "install", "--python", libexec/"bin/python", "pip", "setuptools", "wheel"
+
     # Install the package with all dependencies from pyproject.toml
-    venv.pip_install buildpath
+    # Installing from source directory should automatically install dependencies
+    system libexec/"bin/pip", "install", buildpath
 
     # Install entry point script
     bin.install_symlink libexec/"bin/spatelier"
