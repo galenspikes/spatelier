@@ -49,7 +49,7 @@ class BaseService(ABC):
         Args:
             db_service: Optional database service instance
         """
-        if db_service:
+        if db_service is not None:
             self.db_factory = db_service
             self.repos = self.db_factory.initialize()
             self.db_manager = getattr(self.db_factory, "get_db_manager", lambda: None)()
