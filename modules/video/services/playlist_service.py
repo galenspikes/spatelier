@@ -12,6 +12,7 @@ from core.base import ProcessingResult
 from core.base_service import BaseService
 from core.config import Config
 from database.models import MediaType, ProcessingStatus
+from utils.cookie_manager import CookieManager
 
 
 class PlaylistService(BaseService):
@@ -25,6 +26,9 @@ class PlaylistService(BaseService):
         """Initialize the playlist service."""
         # Initialize base service
         super().__init__(config, verbose, db_service)
+
+        # Initialize cookie manager
+        self.cookie_manager = CookieManager(config, verbose=verbose, logger=self.logger)
 
         # Initialize metadata management
         from database.metadata import MetadataExtractor, MetadataManager
@@ -306,27 +310,6 @@ class PlaylistService(BaseService):
             self.logger.error(f"Failed to get playlist info: {e}")
             return None
 
-    def _get_cookies_from_browser(self) -> Optional[tuple]:
-        """Try to get cookies from common browsers automatically.
-
-        Returns a tuple of browsers to try in order. yt-dlp will try each browser
-        until one works, or continue without cookies if none are available.
-
-        Note: On macOS, Chrome is more reliable than Safari for cookie extraction.
-        """
-        # Try browsers in order of preference
-        # On macOS, Chrome is more reliable than Safari (Safari cookies are harder to access)
-        # yt-dlp will try each browser until one works
-        import platform
-
-        system = platform.system().lower()
-
-        if system == "darwin":  # macOS - prioritize Chrome over Safari
-            browsers = ("chrome", "safari", "firefox", "edge")
-        else:  # Linux, Windows, etc.
-            browsers = ("chrome", "firefox", "safari", "edge")
-
-        return browsers
 
     def _build_playlist_ydl_opts(self, output_dir: Path, **kwargs) -> Dict:
         """Build yt-dlp options for playlist download."""
@@ -353,7 +336,7 @@ class PlaylistService(BaseService):
             ydl_opts["playlistend"] = max_videos
 
         # Automatically try to use cookies from browser for age-restricted content
-        cookies_browser = self._get_cookies_from_browser()
+        cookies_browser = self.cookie_manager.get_browser_list()
         if cookies_browser:
             ydl_opts["cookies_from_browser"] = cookies_browser
 

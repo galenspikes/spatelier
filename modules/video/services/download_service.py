@@ -17,6 +17,7 @@ from core.config import Config
 from database.metadata import MetadataExtractor, MetadataManager
 from database.models import MediaType, ProcessingStatus
 from modules.video.fallback_extractor import FallbackExtractor
+from utils.cookie_manager import CookieManager
 from utils.helpers import get_file_hash, get_file_type, safe_filename
 
 
@@ -54,6 +55,9 @@ class VideoDownloadService(BaseService):
         except RuntimeError as exc:
             self.fallback_extractor = None
             self.logger.info(f"Fallback extractor disabled: {exc}")
+
+        # Initialize cookie manager
+        self.cookie_manager = CookieManager(config, verbose=verbose, logger=self.logger)
 
     def download_video(
         self, url: str, output_path: Optional[Union[str, Path]] = None, **kwargs
@@ -310,12 +314,12 @@ class VideoDownloadService(BaseService):
                 for keyword in ["sign in", "age", "cookies", "authentication"]
             ):
                 self.logger.warning(
-                    "Download failed due to authentication - attempting to refresh cookies..."
+                    "Download failed due to authentication - attempting to get cookies..."
                 )
-                # Try to refresh cookies and get cookie file
-                cookie_file = self._refresh_youtube_cookies()
+                # Try to get cookies (uses cache if valid, otherwise refreshes)
+                cookie_file = self.cookie_manager.get_youtube_cookies()
                 if cookie_file:
-                    self.logger.info("Retrying download with refreshed cookies...")
+                    self.logger.info("Retrying download with cookies...")
                     # Retry the download with cookie file
                     try:
                         ydl_opts = self._build_ydl_opts(output_path, **kwargs)
@@ -334,24 +338,9 @@ class VideoDownloadService(BaseService):
                             ):
                                 return downloaded_file
 
-                        # Clean up cookie file
-                        import os
-
-                        try:
-                            os.unlink(cookie_file)
-                        except:
-                            pass
-
                         # Validate fallback file matches video ID
                         return self._validate_fallback_file(output_path, url)
                     except Exception as retry_error:
-                        # Clean up cookie file
-                        import os
-
-                        try:
-                            os.unlink(cookie_file)
-                        except:
-                            pass
                         self.logger.error(
                             f"Download failed after cookie refresh: {retry_error}"
                         )
@@ -363,100 +352,6 @@ class VideoDownloadService(BaseService):
                 self.logger.error(f"yt-dlp download failed: {e}")
                 return self._validate_fallback_file(output_path, url)
 
-    def _refresh_youtube_cookies(self) -> Optional[str]:
-        """Refresh YouTube cookies by visiting YouTube and extracting fresh cookies.
-
-        Uses Playwright to launch Chrome with the user's profile, visit YouTube,
-        extract the cookies, and save them to a temporary file for yt-dlp to use.
-
-        Returns:
-            Path to cookie file if successful, None otherwise
-        """
-        try:
-            import os
-            import platform
-            import tempfile
-
-            from playwright.sync_api import sync_playwright
-
-            system = platform.system().lower()
-            if system != "darwin":
-                # Only implemented for macOS for now
-                return None
-
-            # Get Chrome user data directory
-            chrome_user_data = os.path.expanduser(
-                "~/Library/Application Support/Google/Chrome"
-            )
-
-            if not os.path.exists(chrome_user_data):
-                return None
-
-            self.logger.info(
-                "Refreshing YouTube cookies by visiting YouTube in Chrome..."
-            )
-
-            with sync_playwright() as p:
-                # Launch Chrome with user's profile
-                browser = p.chromium.launch_persistent_context(
-                    user_data_dir=chrome_user_data,
-                    headless=True,
-                    args=["--disable-blink-features=AutomationControlled"],
-                )
-
-                # Visit YouTube to refresh session
-                page = browser.new_page()
-                page.goto(
-                    "https://www.youtube.com", wait_until="networkidle", timeout=15000
-                )
-                # Wait a moment for cookies to be set
-                page.wait_for_timeout(3000)
-
-                # Extract cookies from the page
-                cookies = browser.cookies()
-                browser.close()
-
-                # Filter for YouTube cookies only
-                youtube_cookies = [
-                    c
-                    for c in cookies
-                    if "youtube.com" in c.get("domain", "")
-                    or ".youtube.com" in c.get("domain", "")
-                ]
-
-                if not youtube_cookies:
-                    self.logger.warning("No YouTube cookies found after refresh")
-                    return None
-
-                # Save cookies to Netscape format file for yt-dlp
-                cookie_file = tempfile.NamedTemporaryFile(
-                    mode="w", suffix=".txt", delete=False
-                )
-                cookie_file.write("# Netscape HTTP Cookie File\n")
-                cookie_file.write("# This file was generated by spatelier\n\n")
-
-                for cookie in youtube_cookies:
-                    domain = cookie.get("domain", "")
-                    domain_flag = "TRUE" if domain.startswith(".") else "FALSE"
-                    path = cookie.get("path", "/")
-                    secure = "TRUE" if cookie.get("secure", False) else "FALSE"
-                    expires = str(int(cookie.get("expires", 0)))
-                    name = cookie.get("name", "")
-                    value = cookie.get("value", "")
-
-                    cookie_file.write(
-                        f"{domain}\t{domain_flag}\t{path}\t{secure}\t{expires}\t{name}\t{value}\n"
-                    )
-
-                cookie_file.close()
-                self.logger.info(
-                    f"YouTube cookies refreshed and saved to: {cookie_file.name}"
-                )
-                return cookie_file.name
-
-        except Exception as e:
-            self.logger.warning(f"Failed to refresh cookies automatically: {e}")
-            return None
 
     def _resolve_downloaded_path(
         self, ydl, info: Optional[Dict[str, Any]]
@@ -567,27 +462,6 @@ class VideoDownloadService(BaseService):
         # If we can't extract video ID, return the file anyway (for non-YouTube URLs)
         return fallback_file
 
-    def _get_cookies_from_browser(self) -> Optional[tuple]:
-        """Try to get cookies from common browsers automatically.
-
-        Returns a tuple of browsers to try in order. yt-dlp will try each browser
-        until one works, or continue without cookies if none are available.
-
-        Note: On macOS, Chrome is more reliable than Safari for cookie extraction.
-        """
-        # Try browsers in order of preference
-        # On macOS, Chrome is more reliable than Safari (Safari cookies are harder to access)
-        # yt-dlp will try each browser until one works
-        import platform
-
-        system = platform.system().lower()
-
-        if system == "darwin":  # macOS - prioritize Chrome over Safari
-            browsers = ("chrome", "safari", "firefox", "edge")
-        else:  # Linux, Windows, etc.
-            browsers = ("chrome", "firefox", "safari", "edge")
-
-        return browsers
 
     def _build_ydl_opts(self, output_path: Path, **kwargs) -> Dict:
         """Build yt-dlp options."""
@@ -612,7 +486,7 @@ class VideoDownloadService(BaseService):
         }
 
         # Automatically try to use cookies from browser for age-restricted content
-        cookies_browser = self._get_cookies_from_browser()
+        cookies_browser = self.cookie_manager.get_browser_list()
         if cookies_browser:
             ydl_opts["cookies_from_browser"] = cookies_browser
             if self.verbose:
