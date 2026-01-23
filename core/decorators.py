@@ -12,6 +12,7 @@ from typing import Any, Callable, Optional, ParamSpec, Tuple, Type, TypeVar, Uni
 
 from core.base import ProcessingResult
 from core.error_handler import get_error_handler
+from core.logger import get_logger
 
 # Type variables for decorators
 P = ParamSpec("P")
@@ -74,12 +75,13 @@ def time_operation(verbose: bool = False):
         @functools.wraps(func)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             start_time = time.time()
+            logger = get_logger(func.__module__)
             try:
                 result = func(*args, **kwargs)
                 duration = time.time() - start_time
 
                 if verbose:
-                    print(f"{func.__name__} completed in {format_duration(duration)}")
+                    logger.debug(f"{func.__name__} completed in {format_duration(duration)}")
 
                 # Add timing to result if it's a ProcessingResult
                 if isinstance(result, ProcessingResult):
@@ -89,7 +91,7 @@ def time_operation(verbose: bool = False):
             except Exception as e:
                 duration = time.time() - start_time
                 if verbose:
-                    print(
+                    logger.debug(
                         f"{func.__name__} failed after {format_duration(duration)}: {e}"
                     )
                 raise
