@@ -266,30 +266,3 @@ class ServiceFactory(IServiceFactory):
         self.close_all_services()
 
 
-# Legacy global factory support (for backward compatibility during transition)
-# Note: This is deprecated and will be removed. Use ServiceFactory(config, verbose) directly.
-_service_factory: Optional[ServiceFactory] = None
-
-
-def get_service_factory() -> ServiceFactory:
-    """
-    Get global service factory instance.
-
-    DEPRECATED: Use ServiceFactory(config, verbose) directly instead.
-    This function exists only for backward compatibility during transition.
-    """
-    global _service_factory
-    if _service_factory is None:
-        # Create with default config - this is not ideal but maintains compatibility
-        _service_factory = ServiceFactory(Config(), verbose=False)
-    return _service_factory
-
-
-def reset_service_factory():
-    """
-    Reset global service factory (useful for testing).
-
-    DEPRECATED: Use ServiceFactory(config, verbose) directly instead.
-    """
-    global _service_factory
-    _service_factory = None
