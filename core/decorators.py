@@ -196,19 +196,20 @@ def log_operation(
 
             logger = get_logger(func.__module__)
 
+            # Map log levels to logger methods
+            log_methods = {
+                "DEBUG": logger.debug,
+                "INFO": logger.info,
+                "WARNING": logger.warning,
+                "ERROR": logger.error,
+            }
+            log_method = log_methods.get(level.upper(), logger.info)
+
             # Log function start
             log_msg = f"Starting {func.__name__}"
             if include_args:
                 log_msg += f" with args={args}, kwargs={kwargs}"
-
-            if level.upper() == "DEBUG":
-                logger.debug(log_msg)
-            elif level.upper() == "INFO":
-                logger.info(log_msg)
-            elif level.upper() == "WARNING":
-                logger.warning(log_msg)
-            elif level.upper() == "ERROR":
-                logger.error(log_msg)
+            log_method(log_msg)
 
             try:
                 result = func(*args, **kwargs)
@@ -217,15 +218,7 @@ def log_operation(
                 log_msg = f"Completed {func.__name__}"
                 if include_result:
                     log_msg += f" with result={result}"
-
-                if level.upper() == "DEBUG":
-                    logger.debug(log_msg)
-                elif level.upper() == "INFO":
-                    logger.info(log_msg)
-                elif level.upper() == "WARNING":
-                    logger.warning(log_msg)
-                elif level.upper() == "ERROR":
-                    logger.error(log_msg)
+                log_method(log_msg)
 
                 return result
             except Exception as e:
