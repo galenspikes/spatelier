@@ -29,7 +29,7 @@ class ErrorHandler:
         self.error_handlers: Dict[Type[Exception], Callable] = {}
         self._register_default_handlers()
 
-    def _register_default_handlers(self):
+    def _register_default_handlers(self) -> None:
         """Register default error handlers."""
         self.error_handlers[FileNotFoundError] = self._handle_file_not_found
         self.error_handlers[PermissionError] = self._handle_permission_error
@@ -134,17 +134,19 @@ class ErrorHandler:
             errors=[f"{type(error).__name__} in {context}: {str(error)}"],
         )
 
-    def register_handler(self, exception_type: Type[Exception], handler: Callable):
+    def register_handler(
+        self, exception_type: Type[Exception], handler: Callable[..., ProcessingResult]
+    ) -> None:
         """Register a custom error handler."""
         self.error_handlers[exception_type] = handler
 
     def safe_execute(
         self,
-        func: Callable,
+        func: Callable[..., Any],
         context: str = "",
         default_result: Optional[ProcessingResult] = None,
-        *args,
-        **kwargs,
+        *args: Any,
+        **kwargs: Any,
     ) -> ProcessingResult:
         """
         Safely execute a function with error handling.
@@ -198,12 +200,12 @@ def handle_error(
 
 
 def safe_execute(
-    func: Callable,
+    func: Callable[..., Any],
     context: str = "",
     verbose: bool = False,
     default_result: Optional[ProcessingResult] = None,
-    *args,
-    **kwargs,
+    *args: Any,
+    **kwargs: Any,
 ) -> ProcessingResult:
     """Convenience function for safe execution."""
     handler = get_error_handler(verbose=verbose)

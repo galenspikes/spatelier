@@ -8,6 +8,9 @@ in service initialization patterns across all service classes.
 from abc import ABC
 from typing import Any, Optional
 
+from core.database_service import DatabaseServiceFactory, RepositoryContainer
+from database.connection import DatabaseManager
+
 from core.config import Config
 from core.database_service import DatabaseServiceFactory
 from core.logger import get_logger
@@ -39,7 +42,7 @@ class BaseService(ABC):
         # Initialize database service
         self._init_database_service(db_service)
 
-    def _init_database_service(self, db_service: Optional[Any] = None):
+    def _init_database_service(self, db_service: Optional[Any] = None) -> None:
         """
         Initialize database service and repositories.
 
@@ -56,14 +59,14 @@ class BaseService(ABC):
             self.repos = self.db_factory.initialize()
             self.db_manager = self.db_factory.get_db_manager()
 
-    def get_database_service(self):
+    def get_database_service(self) -> DatabaseServiceFactory:
         """Get the database service factory."""
         return self.db_factory
 
-    def get_repositories(self):
+    def get_repositories(self) -> RepositoryContainer:
         """Get the repository container."""
         return self.repos
 
-    def get_db_manager(self):
+    def get_db_manager(self) -> Optional[DatabaseManager]:
         """Get the database manager."""
         return self.db_manager
