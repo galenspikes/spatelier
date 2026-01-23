@@ -7,6 +7,7 @@ without loading them entirely into memory.
 
 import json
 import os
+import shutil
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
@@ -151,11 +152,9 @@ class VideoStreamProcessor:
             self.logger.error(f"Stream processing failed: {e}")
             raise
 
-    def _cleanup_temp_dir(self, temp_dir: Path):
+    def _cleanup_temp_dir(self, temp_dir: Path) -> None:
         """Clean up temporary directory."""
         try:
-            import shutil
-
             if temp_dir.exists():
                 shutil.rmtree(temp_dir)
         except Exception as e:
@@ -234,11 +233,9 @@ class AudioStreamProcessor:
             self._cleanup_temp_dir(temp_dir)
             raise
 
-    def _cleanup_temp_dir(self, temp_dir: Path):
+    def _cleanup_temp_dir(self, temp_dir: Path) -> None:
         """Clean up temporary directory."""
         try:
-            import shutil
-
             if temp_dir.exists():
                 shutil.rmtree(temp_dir)
         except Exception as e:
