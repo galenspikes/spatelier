@@ -17,6 +17,7 @@ from core.config import Config
 from core.logger import get_logger
 from database.models import DownloadSource, MediaFile
 from database.repository import MediaFileRepository
+from utils.cookie_manager import CookieManager
 
 
 class MetadataExtractor:
@@ -37,6 +38,7 @@ class MetadataExtractor:
         self.config = config
         self.verbose = verbose
         self.logger = get_logger("MetadataExtractor", verbose=verbose)
+        self.cookie_manager = CookieManager(config, verbose=verbose, logger=self.logger)
 
     def extract_youtube_metadata(self, url: str) -> Dict[str, Any]:
         """
@@ -84,13 +86,13 @@ class MetadataExtractor:
                 for keyword in ["sign in", "age", "cookies", "authentication"]
             ):
                 self.logger.warning(
-                    "Metadata extraction failed due to authentication - attempting to refresh cookies..."
+                    "Metadata extraction failed due to authentication - attempting to get cookies..."
                 )
-                # Try to refresh cookies and get cookie file
-                cookie_file = self._refresh_youtube_cookies()
+                # Try to get cookies (uses cache if valid, otherwise refreshes)
+                cookie_file = self.cookie_manager.get_youtube_cookies()
                 if cookie_file:
                     self.logger.info(
-                        "Retrying metadata extraction with refreshed cookies..."
+                        "Retrying metadata extraction with cookies..."
                     )
                     # Retry the extraction with cookie file
                     try:
@@ -102,23 +104,8 @@ class MetadataExtractor:
                         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                             metadata = ydl.extract_info(url, download=False)
 
-                        # Clean up cookie file
-                        import os
-
-                        try:
-                            os.unlink(cookie_file)
-                        except:
-                            pass
-
                         return self._parse_youtube_metadata(metadata)
                     except Exception as retry_error:
-                        # Clean up cookie file
-                        import os
-
-                        try:
-                            os.unlink(cookie_file)
-                        except:
-                            pass
                         self.logger.error(
                             f"Metadata extraction failed after cookie refresh: {retry_error}"
                         )
@@ -130,100 +117,6 @@ class MetadataExtractor:
                 self.logger.error(f"Metadata extraction failed: {e}")
                 return {}
 
-    def _refresh_youtube_cookies(self) -> Optional[str]:
-        """Refresh YouTube cookies by visiting YouTube and extracting fresh cookies.
-
-        Uses Playwright to launch Chrome with the user's profile, visit YouTube,
-        extract the cookies, and save them to a temporary file for yt-dlp to use.
-
-        Returns:
-            Path to cookie file if successful, None otherwise
-        """
-        try:
-            import os
-            import platform
-            import tempfile
-
-            from playwright.sync_api import sync_playwright
-
-            system = platform.system().lower()
-            if system != "darwin":
-                # Only implemented for macOS for now
-                return None
-
-            # Get Chrome user data directory
-            chrome_user_data = os.path.expanduser(
-                "~/Library/Application Support/Google/Chrome"
-            )
-
-            if not os.path.exists(chrome_user_data):
-                return None
-
-            self.logger.info(
-                "Refreshing YouTube cookies by visiting YouTube in Chrome..."
-            )
-
-            with sync_playwright() as p:
-                # Launch Chrome with user's profile
-                browser = p.chromium.launch_persistent_context(
-                    user_data_dir=chrome_user_data,
-                    headless=True,
-                    args=["--disable-blink-features=AutomationControlled"],
-                )
-
-                # Visit YouTube to refresh session
-                page = browser.new_page()
-                page.goto(
-                    "https://www.youtube.com", wait_until="networkidle", timeout=15000
-                )
-                # Wait a moment for cookies to be set
-                page.wait_for_timeout(3000)
-
-                # Extract cookies from the page
-                cookies = browser.cookies()
-                browser.close()
-
-                # Filter for YouTube cookies only
-                youtube_cookies = [
-                    c
-                    for c in cookies
-                    if "youtube.com" in c.get("domain", "")
-                    or ".youtube.com" in c.get("domain", "")
-                ]
-
-                if not youtube_cookies:
-                    self.logger.warning("No YouTube cookies found after refresh")
-                    return None
-
-                # Save cookies to Netscape format file for yt-dlp
-                cookie_file = tempfile.NamedTemporaryFile(
-                    mode="w", suffix=".txt", delete=False
-                )
-                cookie_file.write("# Netscape HTTP Cookie File\n")
-                cookie_file.write("# This file was generated by spatelier\n\n")
-
-                for cookie in youtube_cookies:
-                    domain = cookie.get("domain", "")
-                    domain_flag = "TRUE" if domain.startswith(".") else "FALSE"
-                    path = cookie.get("path", "/")
-                    secure = "TRUE" if cookie.get("secure", False) else "FALSE"
-                    expires = str(int(cookie.get("expires", 0)))
-                    name = cookie.get("name", "")
-                    value = cookie.get("value", "")
-
-                    cookie_file.write(
-                        f"{domain}\t{domain_flag}\t{path}\t{secure}\t{expires}\t{name}\t{value}\n"
-                    )
-
-                cookie_file.close()
-                self.logger.info(
-                    f"YouTube cookies refreshed and saved to: {cookie_file.name}"
-                )
-                return cookie_file.name
-
-        except Exception as e:
-            self.logger.warning(f"Failed to refresh cookies automatically: {e}")
-            return None
 
     def extract_file_metadata(self, file_path: Union[str, Path]) -> Dict[str, Any]:
         """
