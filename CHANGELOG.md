@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.8] - 2026-01-22
+
+### Fixed
+- Homebrew installation: Fixed pip installation by using `get-pip.py` with `--isolated` flag instead of `ensurepip`, which was finding system pip (due to `--system-site-packages`) and not installing into venv. This ensures pip is properly installed with bin symlinks in the virtual environment before package installation.
+
 ## [0.3.7] - 2026-01-22
 
 ### Fixed
