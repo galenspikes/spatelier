@@ -12,30 +12,59 @@ from typing import Any, Dict, List, Optional, Union
 from core.base import ProcessingResult
 from core.base_service import BaseService
 from core.config import Config
+from core.interfaces import IPlaylistService
 from infrastructure.storage import NASStorageAdapter, StorageAdapter
 from utils.cookie_manager import CookieManager
 
 
-class PlaylistService(BaseService):
+class PlaylistService(BaseService, IPlaylistService):
     """
     Focused playlist service.
 
     Handles playlist downloading and management without transcription concerns.
     """
 
-    def __init__(self, config: Config, verbose: bool = False, db_service=None):
-        """Initialize the playlist service."""
+    def __init__(
+        self,
+        config: Config,
+        verbose: bool = False,
+        db_service=None,
+        metadata_extractor=None,
+        metadata_manager=None,
+    ):
+        """
+        Initialize the playlist service.
+
+        Args:
+            config: Configuration instance
+            verbose: Enable verbose logging
+            db_service: Optional database service instance
+            metadata_extractor: Optional MetadataExtractor (injected dependency)
+            metadata_manager: Optional MetadataManager (injected dependency)
+        """
         # Initialize base service
         super().__init__(config, verbose, db_service)
 
         # Initialize cookie manager
         self.cookie_manager = CookieManager(config, verbose=verbose, logger=self.logger)
 
-        # Initialize metadata management
-        from database.metadata import MetadataExtractor, MetadataManager
+        # Use injected dependencies or create if not provided
+        if metadata_extractor is None or metadata_manager is None:
+            from database.metadata import MetadataExtractor, MetadataManager
 
-        self.metadata_extractor = MetadataExtractor(config, verbose=verbose)
-        self.metadata_manager = MetadataManager(config, verbose=verbose)
+            self.metadata_extractor = (
+                metadata_extractor
+                if metadata_extractor
+                else MetadataExtractor(config, verbose=verbose)
+            )
+            self.metadata_manager = (
+                metadata_manager
+                if metadata_manager
+                else MetadataManager(config, verbose=verbose)
+            )
+        else:
+            self.metadata_extractor = metadata_extractor
+            self.metadata_manager = metadata_manager
 
         # Initialize storage adapter
         self.storage_adapter: StorageAdapter = NASStorageAdapter(
@@ -341,38 +370,49 @@ class PlaylistService(BaseService):
         return filename
 
 
-    def get_playlist_progress(self, playlist_id: str) -> Dict[str, int]:
+    def get_playlist_progress(
+        self, playlist_id: str, repositories=None, transcription_service=None
+    ) -> Dict[str, int]:
         """
         Get playlist download progress.
 
         Args:
             playlist_id: Playlist ID
+            repositories: Optional repository container (for use case layer to pass)
+            transcription_service: Optional TranscriptionService (for use case layer to pass)
 
         Returns:
             Dictionary with progress information (total, completed, failed, remaining)
         """
         try:
+            # Repositories passed from use case layer, not accessed via self.repos
+            if not repositories:
+                self.logger.warning("No repositories provided to get_playlist_progress")
+                return {"total": 0, "completed": 0, "failed": 0, "remaining": 0}
+
             # Get playlist from database
-            playlist = self.repos.playlists.get_by_playlist_id(playlist_id)
+            playlist = repositories.playlists.get_by_playlist_id(playlist_id)
             if not playlist:
                 return {"total": 0, "completed": 0, "failed": 0, "remaining": 0}
 
             # Get playlist videos
-            playlist_videos = self.repos.playlist_videos.get_by_playlist_id(playlist.id)
+            playlist_videos = repositories.playlist_videos.get_by_playlist_id(playlist.id)
             total = len(playlist_videos)
 
             completed = 0
             failed = 0
 
-            # Import here to avoid circular dependency
-            from modules.video.services.transcription_service import TranscriptionService
+            # TranscriptionService passed from use case layer
+            if not transcription_service:
+                # Import here to avoid circular dependency
+                from modules.video.services.transcription_service import TranscriptionService
 
-            transcription_service = TranscriptionService(
-                self.config, verbose=self.verbose, db_service=self.db_factory
-            )
+                transcription_service = TranscriptionService(
+                    self.config, verbose=self.verbose, db_service=self.db_factory
+                )
 
             for pv in playlist_videos:
-                media_file = self.repos.media.get_by_id(pv.media_file_id)
+                media_file = repositories.media.get_by_id(pv.media_file_id)
                 if media_file and media_file.file_path:
                     file_path = Path(media_file.file_path)
                     if file_path.exists():
@@ -399,35 +439,46 @@ class PlaylistService(BaseService):
             self.logger.error(f"Failed to get playlist progress: {e}")
             return {"total": 0, "completed": 0, "failed": 0, "remaining": 0}
 
-    def get_failed_videos(self, playlist_id: str) -> List[Dict[str, Any]]:
+    def get_failed_videos(
+        self, playlist_id: str, repositories=None, transcription_service=None
+    ) -> List[Dict[str, Any]]:
         """
         Get failed videos from playlist.
 
         Args:
             playlist_id: Playlist ID
+            repositories: Optional repository container (for use case layer to pass)
+            transcription_service: Optional TranscriptionService (for use case layer to pass)
 
         Returns:
             List of failed videos with position, title, and reason
         """
         try:
+            # Repositories passed from use case layer, not accessed via self.repos
+            if not repositories:
+                self.logger.warning("No repositories provided to get_failed_videos")
+                return []
+
             # Get playlist from database
-            playlist = self.repos.playlists.get_by_playlist_id(playlist_id)
+            playlist = repositories.playlists.get_by_playlist_id(playlist_id)
             if not playlist:
                 return []
 
             # Get playlist videos
-            playlist_videos = self.repos.playlist_videos.get_by_playlist_id(playlist.id)
+            playlist_videos = repositories.playlist_videos.get_by_playlist_id(playlist.id)
             failed_videos = []
 
-            # Import here to avoid circular dependency
-            from modules.video.services.transcription_service import TranscriptionService
+            # TranscriptionService passed from use case layer
+            if not transcription_service:
+                # Import here to avoid circular dependency
+                from modules.video.services.transcription_service import TranscriptionService
 
-            transcription_service = TranscriptionService(
-                self.config, verbose=self.verbose, db_service=self.db_factory
-            )
+                transcription_service = TranscriptionService(
+                    self.config, verbose=self.verbose, db_service=self.db_factory
+                )
 
             for pv in playlist_videos:
-                media_file = self.repos.media.get_by_id(pv.media_file_id)
+                media_file = repositories.media.get_by_id(pv.media_file_id)
                 if media_file and media_file.file_path:
                     file_path = Path(media_file.file_path)
                     if not file_path.exists():

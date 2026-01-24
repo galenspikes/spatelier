@@ -18,6 +18,7 @@ except ImportError:
 
 from core.base_service import BaseService
 from core.config import Config
+from core.interfaces import ITranscriptionService
 from database.transcription_storage import SQLiteTranscriptionStorage
 from utils.helpers import get_file_hash, get_file_type
 
@@ -25,7 +26,7 @@ from utils.helpers import get_file_hash, get_file_type
 _MODEL_CACHE = {}
 
 
-class TranscriptionService(BaseService):
+class TranscriptionService(BaseService, ITranscriptionService):
     """
     Unified transcription service using faster-whisper.
 

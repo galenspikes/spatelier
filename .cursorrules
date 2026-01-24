@@ -14,6 +14,12 @@
 - Document all public methods with proper docstrings
 - Use type hints throughout the codebase
 
+## Interface Compliance
+- **ALWAYS make services explicitly inherit from their interfaces** - Services must inherit from both BaseService and their interface (e.g., `class MetadataService(BaseService, IMetadataService)`)
+- **ALWAYS update interfaces immediately when changing method signatures** - When refactoring service methods, update the corresponding interface in `core/interfaces.py` at the same time
+- **ALWAYS verify interface compliance** - Python ABC will enforce that all abstract methods are implemented with correct signatures when services inherit from interfaces
+- Interface inheritance ensures runtime type checking and prevents signature mismatches
+
 ## Testing Standards
 - **ALWAYS run tests after making major changes** - Never skip test runs
 - **ALWAYS add new tests for new functionality** - Every new feature needs tests

@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional, Union
 from core.base import BaseDownloader, ProcessingResult
 from core.base_service import BaseService
 from core.config import Config
+from core.interfaces import IVideoDownloadService
 from database.metadata import MetadataExtractor, MetadataManager
 from infrastructure.storage import NASStorageAdapter, StorageAdapter
 from modules.video.fallback_extractor import FallbackExtractor
@@ -22,7 +23,7 @@ from utils.helpers import get_file_hash, get_file_type, safe_filename
 from utils.ytdlp_auth_handler import YtDlpAuthHandler
 
 
-class VideoDownloadService(BaseService):
+class VideoDownloadService(BaseService, IVideoDownloadService):
     """
     Focused video download service.
 

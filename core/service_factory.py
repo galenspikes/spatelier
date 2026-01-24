@@ -32,6 +32,44 @@ class ServiceFactory(IServiceFactory):
 
     Supports context manager usage and lazy-loaded service properties.
     Replaces ServiceContainer with a cleaner, more direct approach.
+
+    Dependency Graph:
+    - DatabaseService (foundation)
+      └── Repositories (initialized from DatabaseService)
+    
+    - VideoDownloadService
+      └── DatabaseService
+    
+    - MetadataService
+      └── DatabaseService
+      └── MetadataExtractor (internal)
+      └── MetadataManager (internal)
+    
+    - TranscriptionService
+      └── DatabaseService
+    
+    - PlaylistService
+      └── DatabaseService
+      └── MetadataExtractor (injected)
+      └── MetadataManager (injected)
+    
+    - AudioExtractionService (if created)
+      └── DatabaseService
+      └── AudioConverter (optional injection)
+      └── VideoDownloadService (optional injection)
+    
+    - Use Cases
+      └── DownloadVideoUseCase
+          ├── VideoDownloadService
+          ├── MetadataService
+          └── Repositories
+      └── DownloadPlaylistUseCase
+          ├── PlaylistService
+          ├── MetadataService
+          └── Repositories
+      └── TranscribeVideoUseCase
+          ├── TranscriptionService
+          └── Repositories
     """
 
     def __init__(self, config: Config, verbose: bool = False):
@@ -153,7 +191,12 @@ class ServiceFactory(IServiceFactory):
         self, config: Optional[Config] = None, verbose: Optional[bool] = None
     ) -> IPlaylistService:
         """
-        Create playlist service.
+        Create playlist service with explicit dependency injection.
+
+        Dependency graph:
+        - PlaylistService
+          - MetadataExtractor (injected)
+          - MetadataManager (injected)
 
         Args:
             config: Optional config override (defaults to instance config)
@@ -165,10 +208,20 @@ class ServiceFactory(IServiceFactory):
             # Get database service for dependency injection
             db_service = self.create_database_service(use_config, use_verbose)
             # Import here to avoid circular imports
+            from database.metadata import MetadataExtractor, MetadataManager
             from modules.video.services import PlaylistService
 
+            # Create dependencies explicitly
+            metadata_extractor = MetadataExtractor(use_config, verbose=use_verbose)
+            metadata_manager = MetadataManager(use_config, verbose=use_verbose)
+
+            # Inject dependencies
             self._playlist_service = PlaylistService(
-                use_config, verbose=use_verbose, db_service=db_service
+                use_config,
+                verbose=use_verbose,
+                db_service=db_service,
+                metadata_extractor=metadata_extractor,
+                metadata_manager=metadata_manager,
             )
         return self._playlist_service
 

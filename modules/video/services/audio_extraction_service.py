@@ -25,7 +25,14 @@ class AudioExtractionService(BaseService):
     progress tracking, and resource management.
     """
 
-    def __init__(self, config, verbose: bool = False, db_service=None):
+    def __init__(
+        self,
+        config,
+        verbose: bool = False,
+        db_service=None,
+        audio_converter: Optional[AudioConverter] = None,
+        download_service: Optional[VideoDownloadService] = None,
+    ):
         """
         Initialize audio extraction service.
 
@@ -33,17 +40,19 @@ class AudioExtractionService(BaseService):
             config: Configuration instance
             verbose: Enable verbose logging
             db_service: Optional database service instance
+            audio_converter: Optional AudioConverter (injected dependency)
+            download_service: Optional VideoDownloadService (injected dependency)
         """
         super().__init__(config, verbose, db_service)
         self.logger = self.logger.bind(service="AudioExtractionService")
 
-        # Initialize dependencies
-        self._audio_converter: Optional[AudioConverter] = None
-        self._download_service: Optional[VideoDownloadService] = None
+        # Use injected dependencies or create lazily if not provided
+        self._audio_converter = audio_converter
+        self._download_service = download_service
 
     @property
     def audio_converter(self) -> AudioConverter:
-        """Get audio converter service (lazy initialization)."""
+        """Get audio converter service (lazy initialization if not injected)."""
         if self._audio_converter is None:
             self._audio_converter = AudioConverter(
                 self.config, verbose=self.verbose, db_service=self.db_factory
@@ -52,7 +61,7 @@ class AudioExtractionService(BaseService):
 
     @property
     def download_service(self) -> VideoDownloadService:
-        """Get video download service (lazy initialization)."""
+        """Get video download service (lazy initialization if not injected)."""
         if self._download_service is None:
             self._download_service = VideoDownloadService(
                 self.config, verbose=self.verbose, db_service=self.db_factory

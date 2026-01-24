@@ -9,10 +9,11 @@ from typing import Any, Dict, Optional, Union
 
 from core.base_service import BaseService
 from core.config import Config
+from core.interfaces import IMetadataService
 from database.metadata import MetadataExtractor, MetadataManager
 
 
-class MetadataService(BaseService):
+class MetadataService(BaseService, IMetadataService):
     """
     Focused metadata service.
 
@@ -52,80 +53,86 @@ class MetadataService(BaseService):
             self.logger.error(f"Failed to extract metadata from {url}: {e}")
             return {}
 
-    def enrich_media_file(self, media_file_id: int) -> bool:
+    def enrich_media_file(self, media_file, repository=None) -> Dict[str, Any]:
         """
         Enrich media file with additional metadata.
 
         Args:
-            media_file_id: ID of media file to enrich
+            media_file: MediaFile instance to enrich
+            repository: Optional MediaFileRepository (for use case layer to pass)
 
         Returns:
-            True if enrichment successful, False otherwise
+            Dictionary with enriched metadata, or empty dict if enrichment failed
         """
         try:
-            media_file = self.repos.media.get_by_id(media_file_id)
-            if not media_file:
-                self.logger.error(f"Media file not found: {media_file_id}")
-                return False
-
-            # Enrich with additional metadata
-            self.metadata_manager.enrich_media_file(
-                media_file, self.repos.media, extract_source_metadata=True
+            # Enrich with additional metadata (returns enriched media_file)
+            # Repository is passed from use case layer, not accessed via self.repos
+            enriched_file = self.metadata_manager.enrich_media_file(
+                media_file, repository, extract_source_metadata=True
             )
 
-            self.logger.info(f"Enriched metadata for media file: {media_file_id}")
-            return True
+            # Convert to dictionary for use case layer
+            metadata = {
+                "id": enriched_file.id,
+                "file_path": enriched_file.file_path,
+                "file_name": enriched_file.file_name,
+                "file_size": enriched_file.file_size,
+                "file_hash": enriched_file.file_hash,
+                "media_type": enriched_file.media_type,
+                "mime_type": enriched_file.mime_type,
+                "source_url": enriched_file.source_url,
+                "source_platform": enriched_file.source_platform,
+                "source_id": enriched_file.source_id,
+                "title": enriched_file.title,
+                "description": enriched_file.description,
+                "uploader": enriched_file.uploader,
+                "uploader_id": enriched_file.uploader_id,
+                "upload_date": enriched_file.upload_date,
+                "view_count": enriched_file.view_count,
+                "like_count": enriched_file.like_count,
+                "duration": enriched_file.duration,
+                "language": enriched_file.language,
+            }
+
+            self.logger.info(f"Enriched metadata for media file: {media_file.id}")
+            return metadata
 
         except Exception as e:
-            self.logger.error(f"Failed to enrich media file {media_file_id}: {e}")
-            return False
+            self.logger.error(f"Failed to enrich media file {media_file.id}: {e}")
+            return {}
 
-    def update_media_file_metadata(
-        self, media_file_id: int, metadata: Dict[str, Any]
-    ) -> bool:
+    def prepare_metadata_update(
+        self, metadata: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
-        Update media file with new metadata.
+        Prepare metadata update dictionary.
 
         Args:
-            media_file_id: ID of media file to update
             metadata: New metadata to apply
 
         Returns:
-            True if update successful, False otherwise
+            Dictionary with prepared metadata for use case layer to apply
         """
-        try:
-            media_file = self.repos.media.get_by_id(media_file_id)
-            if not media_file:
-                self.logger.error(f"Media file not found: {media_file_id}")
-                return False
+        # Validate and prepare metadata
+        prepared = {}
+        for key, value in metadata.items():
+            if value is not None:
+                prepared[key] = value
 
-            # Update media file with new metadata
-            self.repos.media.update(media_file_id, **metadata)
+        self.logger.debug(f"Prepared metadata update with {len(prepared)} fields")
+        return prepared
 
-            self.logger.info(f"Updated metadata for media file: {media_file_id}")
-            return True
-
-        except Exception as e:
-            self.logger.error(
-                f"Failed to update metadata for media file {media_file_id}: {e}"
-            )
-            return False
-
-    def get_media_file_metadata(self, media_file_id: int) -> Optional[Dict[str, Any]]:
+    def convert_media_file_to_dict(self, media_file) -> Dict[str, Any]:
         """
-        Get metadata for a media file.
+        Convert MediaFile instance to dictionary.
 
         Args:
-            media_file_id: ID of media file
+            media_file: MediaFile instance
 
         Returns:
-            Dictionary containing media file metadata, or None if not found
+            Dictionary containing media file metadata
         """
         try:
-            media_file = self.repos.media.get_by_id(media_file_id)
-            if not media_file:
-                return None
-
             # Convert SQLAlchemy object to dictionary
             metadata = {
                 "id": media_file.id,
@@ -155,36 +162,39 @@ class MetadataService(BaseService):
 
         except Exception as e:
             self.logger.error(
-                f"Failed to get metadata for media file {media_file_id}: {e}"
+                f"Failed to convert media file to dict: {e}"
             )
-            return None
+            return {}
 
-    def search_media_files(self, query: str, media_type: Optional[str] = None) -> list:
+    def prepare_search_params(
+        self, query: str, media_type: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
-        Search media files by metadata.
+        Prepare search parameters for media file search.
 
         Args:
             query: Search query
             media_type: Optional media type filter
 
         Returns:
-            List of matching media files
+            Dictionary with search parameters for use case layer
         """
         try:
             from database.models import MediaType
 
-            media_type_enum = None
+            params = {"query": query}
+            
             if media_type:
                 try:
-                    media_type_enum = MediaType(media_type)
+                    params["media_type"] = MediaType(media_type)
                 except ValueError:
                     self.logger.warning(f"Invalid media type: {media_type}")
+                    params["media_type"] = None
+            else:
+                params["media_type"] = None
 
-            results = self.repos.media.search(query, media_type_enum)
-
-            self.logger.info(f"Found {len(results)} media files matching '{query}'")
-            return results
+            return params
 
         except Exception as e:
-            self.logger.error(f"Failed to search media files: {e}")
-            return []
+            self.logger.error(f"Failed to prepare search params: {e}")
+            return {"query": query, "media_type": None}
