@@ -722,9 +722,11 @@ def create_download_processor(services) -> Callable[[Job], bool]:
             # Create output directory
             output_path.mkdir(parents=True, exist_ok=True)
 
-            # Download video using existing service
-            result = services.video_download.download_video(
-                video_url, output_path, quality=job_data.get("quality", "1080p")
+            # Download video using use case
+            result = services.download_video_use_case.execute(
+                url=video_url,
+                output_path=output_path,
+                quality=job_data.get("quality", "1080p"),
             )
 
             return result.is_successful()
@@ -752,9 +754,11 @@ def create_playlist_processor(services) -> Callable[[Job], bool]:
             # Create output directory
             output_path.mkdir(parents=True, exist_ok=True)
 
-            # Download playlist using existing service
-            result = services.playlist.download_playlist(
-                playlist_url, output_path, quality=job_data.get("quality", "1080p")
+            # Download playlist using use case
+            result = services.download_playlist_use_case.execute(
+                url=playlist_url,
+                output_path=output_path,
+                quality=job_data.get("quality", "1080p"),
             )
 
             return result.is_successful()

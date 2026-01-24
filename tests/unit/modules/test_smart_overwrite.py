@@ -73,7 +73,13 @@ class TestSmartOverwrite:
         self, downloader, sample_video_file
     ):
         """Test checking existing video file without subtitles."""
-        with patch.object(downloader, "_has_whisper_subtitles", return_value=False):
+        # Mock TranscriptionService.has_whisper_subtitles
+        with patch(
+            "modules.video.services.transcription_service.TranscriptionService"
+        ) as mock_transcription_service_class:
+            mock_transcription_service = mock_transcription_service_class.return_value
+            mock_transcription_service.has_whisper_subtitles.return_value = False
+
             result = downloader._check_existing_video(
                 sample_video_file, "https://example.com/video"
             )
@@ -87,18 +93,31 @@ class TestSmartOverwrite:
         self, downloader, sample_video_file
     ):
         """Test checking existing video file with subtitles."""
-        with patch.object(downloader, "_has_whisper_subtitles", return_value=True):
+        # Mock TranscriptionService.has_whisper_subtitles
+        with patch(
+            "modules.video.services.transcription_service.TranscriptionService"
+        ) as mock_transcription_service_class:
+            mock_transcription_service = mock_transcription_service_class.return_value
+            mock_transcription_service.has_whisper_subtitles.return_value = True
+
             result = downloader._check_existing_video(
                 sample_video_file, "https://example.com/video"
             )
 
-        assert result["exists"] is True
-        assert result["has_subtitles"] is True
-        assert result["should_overwrite"] is False
-        assert "with WhisperAI subtitles" in result["reason"]
+            assert result["exists"] is True
+            assert result["has_subtitles"] is True
+            assert result["should_overwrite"] is False
+            assert "with WhisperAI subtitles" in result["reason"]
 
     def test_has_whisper_subtitles_success(self, downloader, sample_video_file):
         """Test successful subtitle detection."""
+        # Test TranscriptionService.has_whisper_subtitles directly
+        from modules.video.services.transcription_service import TranscriptionService
+        from core.config import Config
+
+        config = Config()
+        transcription_service = TranscriptionService(config, verbose=False)
+
         # Mock ffprobe to return subtitle tracks
         mock_ffprobe_output = {
             "streams": [
@@ -115,12 +134,19 @@ class TestSmartOverwrite:
             mock_run.return_value.returncode = 0
             mock_run.return_value.stdout = json.dumps(mock_ffprobe_output)
 
-            result = downloader._has_whisper_subtitles(sample_video_file)
+            result = transcription_service.has_whisper_subtitles(sample_video_file)
 
             assert result is True
 
     def test_has_whisper_subtitles_no_subtitles(self, downloader, sample_video_file):
         """Test subtitle detection when no subtitles exist."""
+        # Test TranscriptionService.has_whisper_subtitles directly
+        from modules.video.services.transcription_service import TranscriptionService
+        from core.config import Config
+
+        config = Config()
+        transcription_service = TranscriptionService(config, verbose=False)
+
         # Mock ffprobe to return no subtitle tracks
         mock_ffprobe_output = {"streams": [{"index": 0, "codec_type": "video"}]}
 
@@ -128,26 +154,38 @@ class TestSmartOverwrite:
             mock_run.return_value.returncode = 0
             mock_run.return_value.stdout = json.dumps(mock_ffprobe_output)
 
-            result = downloader._has_whisper_subtitles(sample_video_file)
+            result = transcription_service.has_whisper_subtitles(sample_video_file)
 
             assert result is False
 
     def test_has_whisper_subtitles_ffprobe_failure(self, downloader, sample_video_file):
         """Test subtitle detection when ffprobe fails."""
+        from modules.video.services.transcription_service import TranscriptionService
+        from core.config import Config
+
+        config = Config()
+        transcription_service = TranscriptionService(config, verbose=False)
+
         with patch("subprocess.run") as mock_run:
             mock_run.return_value.returncode = 1
             mock_run.return_value.stderr = "ffprobe error"
 
-            result = downloader._has_whisper_subtitles(sample_video_file)
+            result = transcription_service.has_whisper_subtitles(sample_video_file)
 
             assert result is False
 
     def test_has_whisper_subtitles_timeout(self, downloader, sample_video_file):
         """Test subtitle detection when ffprobe times out."""
+        from modules.video.services.transcription_service import TranscriptionService
+        from core.config import Config
+
+        config = Config()
+        transcription_service = TranscriptionService(config, verbose=False)
+
         with patch("subprocess.run") as mock_run:
             mock_run.side_effect = TimeoutError("ffprobe timeout")
 
-            result = downloader._has_whisper_subtitles(sample_video_file)
+            result = transcription_service.has_whisper_subtitles(sample_video_file)
 
             assert result is False
 
@@ -155,6 +193,12 @@ class TestSmartOverwrite:
         self, downloader, sample_video_file
     ):
         """Test subtitle detection with WhisperAI in title."""
+        from modules.video.services.transcription_service import TranscriptionService
+        from core.config import Config
+
+        config = Config()
+        transcription_service = TranscriptionService(config, verbose=False)
+
         mock_ffprobe_output = {
             "streams": [
                 {"index": 0, "codec_type": "video"},
@@ -170,7 +214,7 @@ class TestSmartOverwrite:
             mock_run.return_value.returncode = 0
             mock_run.return_value.stdout = json.dumps(mock_ffprobe_output)
 
-            result = downloader._has_whisper_subtitles(sample_video_file)
+            result = transcription_service.has_whisper_subtitles(sample_video_file)
 
             assert result is True
 
@@ -178,6 +222,12 @@ class TestSmartOverwrite:
         self, downloader, sample_video_file
     ):
         """Test subtitle detection with WhisperAI in title (case insensitive)."""
+        from modules.video.services.transcription_service import TranscriptionService
+        from core.config import Config
+
+        config = Config()
+        transcription_service = TranscriptionService(config, verbose=False)
+
         mock_ffprobe_output = {
             "streams": [
                 {"index": 0, "codec_type": "video"},
@@ -193,12 +243,18 @@ class TestSmartOverwrite:
             mock_run.return_value.returncode = 0
             mock_run.return_value.stdout = json.dumps(mock_ffprobe_output)
 
-            result = downloader._has_whisper_subtitles(sample_video_file)
+            result = transcription_service.has_whisper_subtitles(sample_video_file)
 
             assert result is True
 
     def test_has_whisper_subtitles_other_subtitles(self, downloader, sample_video_file):
         """Test subtitle detection with non-WhisperAI subtitles."""
+        from modules.video.services.transcription_service import TranscriptionService
+        from core.config import Config
+
+        config = Config()
+        transcription_service = TranscriptionService(config, verbose=False)
+
         mock_ffprobe_output = {
             "streams": [
                 {"index": 0, "codec_type": "video"},
@@ -214,13 +270,19 @@ class TestSmartOverwrite:
             mock_run.return_value.returncode = 0
             mock_run.return_value.stdout = json.dumps(mock_ffprobe_output)
 
-            result = downloader._has_whisper_subtitles(sample_video_file)
+            result = transcription_service.has_whisper_subtitles(sample_video_file)
 
             # Should return False because there are no WhisperAI subtitles
             assert result is False
 
     def test_has_whisper_subtitles_no_title_tag(self, downloader, sample_video_file):
         """Test subtitle detection with subtitles but no title tag."""
+        from modules.video.services.transcription_service import TranscriptionService
+        from core.config import Config
+
+        config = Config()
+        transcription_service = TranscriptionService(config, verbose=False)
+
         mock_ffprobe_output = {
             "streams": [
                 {"index": 0, "codec_type": "video"},
@@ -232,18 +294,24 @@ class TestSmartOverwrite:
             mock_run.return_value.returncode = 0
             mock_run.return_value.stdout = json.dumps(mock_ffprobe_output)
 
-            result = downloader._has_whisper_subtitles(sample_video_file)
+            result = transcription_service.has_whisper_subtitles(sample_video_file)
 
             # Should return False because there are no WhisperAI subtitles (no title tag)
             assert result is False
 
     def test_has_whisper_subtitles_invalid_json(self, downloader, sample_video_file):
         """Test subtitle detection with invalid JSON from ffprobe."""
+        from modules.video.services.transcription_service import TranscriptionService
+        from core.config import Config
+
+        config = Config()
+        transcription_service = TranscriptionService(config, verbose=False)
+
         with patch("subprocess.run") as mock_run:
             mock_run.return_value.returncode = 0
             mock_run.return_value.stdout = "invalid json"
 
-            result = downloader._has_whisper_subtitles(sample_video_file)
+            result = transcription_service.has_whisper_subtitles(sample_video_file)
 
             assert result is False
 
@@ -251,10 +319,16 @@ class TestSmartOverwrite:
         self, downloader, sample_video_file
     ):
         """Test subtitle detection with exception handling."""
+        from modules.video.services.transcription_service import TranscriptionService
+        from core.config import Config
+
+        config = Config()
+        transcription_service = TranscriptionService(config, verbose=False)
+
         with patch("subprocess.run") as mock_run:
             mock_run.side_effect = Exception("Unexpected error")
 
-            result = downloader._has_whisper_subtitles(sample_video_file)
+            result = transcription_service.has_whisper_subtitles(sample_video_file)
 
             assert result is False
 
@@ -268,14 +342,24 @@ class TestSmartOverwrite:
         assert result1["should_overwrite"] is True
 
         # Test case 2: File exists without subtitles - should overwrite
-        with patch.object(downloader, "_has_whisper_subtitles", return_value=False):
+        with patch(
+            "modules.video.services.transcription_service.TranscriptionService"
+        ) as mock_transcription_service_class:
+            mock_transcription_service = mock_transcription_service_class.return_value
+            mock_transcription_service.has_whisper_subtitles.return_value = False
+
             result2 = downloader._check_existing_video(
                 sample_video_file, "https://example.com/video"
             )
             assert result2["should_overwrite"] is True
 
         # Test case 3: File exists with subtitles - should not overwrite
-        with patch.object(downloader, "_has_whisper_subtitles", return_value=True):
+        with patch(
+            "modules.video.services.transcription_service.TranscriptionService"
+        ) as mock_transcription_service_class:
+            mock_transcription_service = mock_transcription_service_class.return_value
+            mock_transcription_service.has_whisper_subtitles.return_value = True
+
             result3 = downloader._check_existing_video(
                 sample_video_file, "https://example.com/video"
             )

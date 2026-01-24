@@ -18,7 +18,6 @@ except ImportError:
 
 from core.base_service import BaseService
 from core.config import Config
-from database.models import MediaType
 from database.transcription_storage import SQLiteTranscriptionStorage
 from utils.helpers import get_file_hash, get_file_type
 
@@ -103,7 +102,7 @@ class TranscriptionService(BaseService):
         media_file_id: Optional[int] = None,
         language: Optional[str] = None,
         model_size: Optional[str] = None,
-    ) -> bool:
+    ) -> dict:
         """
         Transcribe a video file.
 
@@ -114,32 +113,21 @@ class TranscriptionService(BaseService):
             model_size: Whisper model size
 
         Returns:
-            True if transcription successful, False otherwise
+            Dictionary with transcription results:
+            - success: bool
+            - transcription_id: Optional[int]
+            - segments: List[dict]
+            - language: str
+            - duration: float
+            - processing_time: float
+            - model_used: str
+            - error: Optional[str] (if failed)
         """
         try:
             video_path = Path(video_path)
             if not video_path.exists():
                 self.logger.error(f"Video file not found: {video_path}")
-                return False
-
-            if media_file_id is None:
-                existing_media = self.repos.media.get_by_file_path(str(video_path))
-                if existing_media:
-                    media_file_id = existing_media.id
-                else:
-                    created_media = self.repos.media.create(
-                        file_path=video_path,
-                        file_name=video_path.name,
-                        file_size=video_path.stat().st_size,
-                        file_hash=get_file_hash(video_path),
-                        media_type=MediaType.VIDEO,
-                        mime_type=get_file_type(video_path),
-                        title=video_path.stem,
-                        source_platform="local",
-                        source_id=None,
-                        source_url=None,
-                    )
-                    media_file_id = created_media.id
+                return {"success": False, "error": "Video file not found"}
 
             # Initialize transcription service
             effective_model_size = model_size or self.model_size
@@ -147,20 +135,10 @@ class TranscriptionService(BaseService):
                 self.logger.error(
                     "Transcription dependencies not available. This should not happen - faster-whisper is a core dependency."
                 )
-                return False
+                return {"success": False, "error": "Transcription dependencies not available"}
 
             # Get language
             language = language or self.config.transcription.default_language
-
-            # Track transcription start
-            self.repos.analytics.track_event(
-                "transcription_start",
-                event_data={
-                    "video_path": str(video_path),
-                    "media_file_id": media_file_id,
-                    "language": language,
-                },
-            )
 
             # Transcribe video
             self.logger.info(f"Starting transcription of: {video_path}")
@@ -177,48 +155,35 @@ class TranscriptionService(BaseService):
 
             if result and "segments" in result:
                 # Store transcription in database
-                transcription_id = self.transcription_storage.store_transcription(
-                    media_file_id, result
-                )
-
-                if transcription_id:
-                    self.logger.info(
-                        f"Transcription stored with ID: {transcription_id}"
+                transcription_id = None
+                if media_file_id and self.transcription_storage:
+                    transcription_id = self.transcription_storage.store_transcription(
+                        media_file_id, result
                     )
 
-                    # Track successful transcription
-                    self.repos.analytics.track_event(
-                        "transcription_completed",
-                        event_data={
-                            "video_path": str(video_path),
-                            "media_file_id": media_file_id,
-                            "transcription_id": transcription_id,
-                            "segments_count": len(result["segments"]),
-                        },
-                    )
+                    if transcription_id:
+                        self.logger.info(
+                            f"Transcription stored with ID: {transcription_id}"
+                        )
+                    else:
+                        self.logger.warning("Failed to store transcription in database")
 
-                    return True
-                else:
-                    self.logger.error("Failed to store transcription in database")
-                    return False
+                return {
+                    "success": True,
+                    "transcription_id": transcription_id,
+                    "segments": result["segments"],
+                    "language": result.get("language", language),
+                    "duration": result.get("duration", 0.0),
+                    "processing_time": processing_time,
+                    "model_used": f"whisper-{effective_model_size}",
+                }
             else:
                 self.logger.error("Transcription failed - no segments generated")
-                return False
+                return {"success": False, "error": "No segments generated"}
 
         except Exception as e:
             self.logger.error(f"Transcription failed: {e}")
-
-            # Track transcription error
-            self.repos.analytics.track_event(
-                "transcription_error",
-                event_data={
-                    "video_path": str(video_path),
-                    "media_file_id": media_file_id,
-                    "error": str(e),
-                },
-            )
-
-            return False
+            return {"success": False, "error": str(e)}
 
     def _transcribe_with_faster_whisper(self, video_path: Path, language: str) -> Dict:
         """Transcribe using faster-whisper (faster, less accurate)."""
@@ -253,7 +218,7 @@ class TranscriptionService(BaseService):
         video_path: Union[str, Path],
         output_path: Union[str, Path],
         media_file_id: Optional[int] = None,
-    ) -> bool:
+    ) -> dict:
         """
         Embed subtitles into video file.
 
@@ -263,7 +228,10 @@ class TranscriptionService(BaseService):
             media_file_id: Optional media file ID for database tracking
 
         Returns:
-            True if embedding successful, False otherwise
+            Dictionary with embedding results:
+            - success: bool
+            - output_path: Optional[str]
+            - error: Optional[str] (if failed)
         """
         try:
             video_path = Path(video_path)
@@ -273,24 +241,6 @@ class TranscriptionService(BaseService):
                 self.logger.error(f"Video file not found: {video_path}")
                 return False
 
-            if media_file_id is None:
-                existing_media = self.repos.media.get_by_file_path(str(video_path))
-                if existing_media:
-                    media_file_id = existing_media.id
-                else:
-                    created_media = self.repos.media.create(
-                        file_path=video_path,
-                        file_name=video_path.name,
-                        file_size=video_path.stat().st_size,
-                        file_hash=get_file_hash(video_path),
-                        media_type=MediaType.VIDEO,
-                        mime_type=get_file_type(video_path),
-                        title=video_path.stem,
-                        source_platform="local",
-                        source_id=None,
-                        source_url=None,
-                    )
-                    media_file_id = created_media.id
 
             # Initialize transcription service
             if not self._initialize_transcription():
@@ -317,36 +267,14 @@ class TranscriptionService(BaseService):
                     f"Successfully embedded subtitles into video: {output_path}"
                 )
 
-                # Track successful embedding
-                self.repos.analytics.track_event(
-                    "subtitle_embedding_completed",
-                    event_data={
-                        "input_path": str(video_path),
-                        "output_path": str(output_path),
-                        "media_file_id": media_file_id,
-                    },
-                )
-
-                return True
+                return {"success": True, "output_path": str(output_path)}
             else:
                 self.logger.error("Failed to embed subtitles")
-                return False
+                return {"success": False, "error": "Embedding failed"}
 
         except Exception as e:
             self.logger.error(f"Subtitle embedding failed: {e}")
-
-            # Track embedding error
-            self.repos.analytics.track_event(
-                "subtitle_embedding_error",
-                event_data={
-                    "input_path": str(video_path),
-                    "output_path": str(output_path),
-                    "media_file_id": media_file_id,
-                    "error": str(e),
-                },
-            )
-
-            return False
+            return {"success": False, "error": str(e)}
 
     def _get_transcription_data(
         self, video_path: Path, media_file_id: Optional[int] = None
@@ -442,6 +370,86 @@ class TranscriptionService(BaseService):
         minutes = int((seconds % 3600) // 60)
         secs = seconds % 60
         return f"{hours:02d}:{minutes:02d}:{secs:06.3f}".replace(".", ",")
+
+    def has_transcription(self, media_file) -> bool:
+        """
+        Check if a media file has transcription.
+
+        Args:
+            media_file: MediaFile database entity
+
+        Returns:
+            True if transcription exists, False otherwise
+        """
+        try:
+            if not media_file or not media_file.file_path:
+                return False
+
+            file_path = Path(media_file.file_path)
+            if not file_path.exists():
+                return False
+
+            # Check for transcription files
+            base_name = file_path.stem
+            transcription_files = [
+                file_path.parent / f"{base_name}.srt",
+                file_path.parent / f"{base_name}.vtt",
+                file_path.parent / f"{base_name}.json",
+            ]
+
+            return any(f.exists() for f in transcription_files)
+
+        except Exception as e:
+            self.logger.error(f"Failed to check transcription: {e}")
+            return False
+
+    def has_whisper_subtitles(self, file_path: Path) -> bool:
+        """
+        Check if video file has Whisper subtitles embedded.
+
+        Args:
+            file_path: Path to video file
+
+        Returns:
+            True if Whisper subtitles are embedded, False otherwise
+        """
+        try:
+            import subprocess
+
+            # Use ffprobe to check for subtitle tracks
+            cmd = [
+                "ffprobe",
+                "-v",
+                "quiet",
+                "-print_format",
+                "json",
+                "-show_streams",
+                "-show_format",
+                str(file_path),
+            ]
+
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+
+            if result.returncode != 0:
+                return False
+
+            import json
+
+            data = json.loads(result.stdout)
+
+            # Check for subtitle streams
+            for stream in data.get("streams", []):
+                if stream.get("codec_type") == "subtitle":
+                    # Check if it's a Whisper subtitle
+                    title = stream.get("tags", {}).get("title", "")
+                    if "whisper" in title.lower() or "whisperai" in title.lower():
+                        return True
+
+            return False
+
+        except Exception as e:
+            self.logger.warning(f"Error checking subtitles for {file_path}: {e}")
+            return False
 
     def get_transcription(self, media_file_id: int) -> Optional[Dict[str, Any]]:
         """

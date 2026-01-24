@@ -54,6 +54,11 @@ class ServiceFactory(IServiceFactory):
         self._transcription_service: Optional[ITranscriptionService] = None
         self._playlist_service: Optional[IPlaylistService] = None
         self._job_queue: Optional["JobQueue"] = None
+        
+        # Use cases will be created lazily
+        self._download_video_use_case = None
+        self._download_playlist_use_case = None
+        self._transcribe_video_use_case = None
 
     def create_database_service(
         self, config: Optional[Config] = None, verbose: Optional[bool] = None
@@ -209,6 +214,62 @@ class ServiceFactory(IServiceFactory):
             self._job_queue = JobQueue(self.config, self.verbose)
         return self._job_queue
 
+    # Use case properties
+    @property
+    def download_video_use_case(self):
+        """Get download video use case (lazy-loaded)."""
+        if self._download_video_use_case is None:
+            from domain.use_cases import DownloadVideoUseCase
+            
+            download_service = self.video_download
+            metadata_service = self.metadata
+            repositories = self.repositories
+            logger = self.logger
+            
+            self._download_video_use_case = DownloadVideoUseCase(
+                download_service=download_service,
+                metadata_service=metadata_service,
+                repositories=repositories,
+                logger=logger,
+            )
+        return self._download_video_use_case
+
+    @property
+    def download_playlist_use_case(self):
+        """Get download playlist use case (lazy-loaded)."""
+        if self._download_playlist_use_case is None:
+            from domain.use_cases import DownloadPlaylistUseCase
+            
+            playlist_service = self.playlist
+            metadata_service = self.metadata
+            repositories = self.repositories
+            logger = self.logger
+            
+            self._download_playlist_use_case = DownloadPlaylistUseCase(
+                playlist_service=playlist_service,
+                metadata_service=metadata_service,
+                repositories=repositories,
+                logger=logger,
+            )
+        return self._download_playlist_use_case
+
+    @property
+    def transcribe_video_use_case(self):
+        """Get transcribe video use case (lazy-loaded)."""
+        if self._transcribe_video_use_case is None:
+            from domain.use_cases import TranscribeVideoUseCase
+            
+            transcription_service = self.transcription
+            repositories = self.repositories
+            logger = self.logger
+            
+            self._transcribe_video_use_case = TranscribeVideoUseCase(
+                transcription_service=transcription_service,
+                repositories=repositories,
+                logger=logger,
+            )
+        return self._transcribe_video_use_case
+
     def initialize_database(self) -> IRepositoryContainer:
         """
         Initialize database and return repositories.
@@ -231,6 +292,11 @@ class ServiceFactory(IServiceFactory):
         self._transcription_service = None
         self._playlist_service = None
         self._job_queue = None
+        
+        # Reset use cases
+        self._download_video_use_case = None
+        self._download_playlist_use_case = None
+        self._transcribe_video_use_case = None
 
     def get_database_service(self) -> Optional[IDatabaseService]:
         """Get existing database service."""

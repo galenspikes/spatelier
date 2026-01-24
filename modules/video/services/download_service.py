@@ -15,7 +15,7 @@ from core.base import BaseDownloader, ProcessingResult
 from core.base_service import BaseService
 from core.config import Config
 from database.metadata import MetadataExtractor, MetadataManager
-from database.models import MediaType, ProcessingStatus
+from infrastructure.storage import NASStorageAdapter, StorageAdapter
 from modules.video.fallback_extractor import FallbackExtractor
 from utils.cookie_manager import CookieManager
 from utils.helpers import get_file_hash, get_file_type, safe_filename
@@ -62,6 +62,11 @@ class VideoDownloadService(BaseService):
         # Initialize auth error handler
         self.auth_handler = YtDlpAuthHandler(self.cookie_manager, logger=self.logger)
 
+        # Initialize storage adapter
+        self.storage_adapter: StorageAdapter = NASStorageAdapter(
+            config.video.temp_dir, logger=self.logger
+        )
+
     def download_video(
         self, url: str, output_path: Optional[Union[str, Path]] = None, **kwargs
     ) -> ProcessingResult:
@@ -76,8 +81,7 @@ class VideoDownloadService(BaseService):
         Returns:
             ProcessingResult with download details
         """
-        # Track download start
-        self.repos.analytics.track_event("download_start", event_data={"url": url})
+        # Analytics tracking will be handled by decorator/middleware
 
         # Extract metadata before download
         source_metadata = {}
@@ -105,31 +109,21 @@ class VideoDownloadService(BaseService):
 
             output_dir.mkdir(parents=True, exist_ok=True)
 
-            # Create processing job
-            job = self.repos.jobs.create(
-                media_file_id=None,  # Will be updated after processing
-                job_type="download_video",
-                input_path=url,
-                output_path=str(output_file or output_dir),
-                parameters=str(kwargs),
-            )
-            self.logger.info(f"Created video processing job: {job.id}")
+            # Get job_id if provided (from use case layer) - for logging only
+            job_id = kwargs.get("job_id")
 
-            # Check if output is on NAS and set up temp processing if needed
-            is_nas = self._is_nas_path(output_dir)
+            # Check if output is on remote storage and set up temp processing if needed
+            is_remote = self.storage_adapter.is_remote(output_dir)
 
             temp_dir = None
             processing_path = output_dir
 
-            if is_nas:
+            if is_remote and job_id:
                 # Create job-specific temp processing directory
-                temp_dir = self._get_temp_processing_dir(job.id)
+                temp_dir = self.storage_adapter.get_temp_processing_dir(job_id)
                 processing_path = temp_dir
-                self.logger.info(f"NAS detected, using temp processing: {temp_dir}")
+                self.logger.info(f"Remote storage detected, using temp processing: {temp_dir}")
                 self.logger.info(f"Video will be processed in: {processing_path}")
-
-            # Mark job as processing (sets started_at for duration tracking)
-            self.repos.jobs.update_status(job.id, ProcessingStatus.PROCESSING)
 
             # Download using yt-dlp
             downloaded_file = self._download_with_ytdlp(url, processing_path, **kwargs)
@@ -138,138 +132,113 @@ class VideoDownloadService(BaseService):
                 # Extract video metadata
                 video_id = self._extract_video_id_from_url(url)
 
-                # Create media file record
-                media_file = self.repos.media.create(
-                    file_path=str(downloaded_file),
-                    file_name=downloaded_file.name,
-                    file_size=downloaded_file.stat().st_size,
-                    file_hash=get_file_hash(downloaded_file),
-                    media_type=MediaType.VIDEO,
-                    mime_type=get_file_type(downloaded_file),
-                    source_url=url,
-                    source_platform=(
+                # Prepare metadata for use case layer to handle persistence
+                file_metadata = {
+                    "file_path": str(downloaded_file),
+                    "file_name": downloaded_file.name,
+                    "file_size": downloaded_file.stat().st_size,
+                    "file_hash": get_file_hash(downloaded_file),
+                    "mime_type": get_file_type(downloaded_file),
+                    "source_url": url,
+                    "source_platform": (
                         "youtube"
                         if "youtube.com" in url or "youtu.be" in url
                         else "unknown"
                     ),
-                    source_id=video_id,
-                    title=source_metadata.get("title", downloaded_file.stem),
-                    description=source_metadata.get("description"),
-                    uploader=source_metadata.get("uploader"),
-                    uploader_id=source_metadata.get("uploader_id"),
-                    upload_date=source_metadata.get("upload_date"),
-                    view_count=source_metadata.get("view_count"),
-                    like_count=source_metadata.get("like_count"),
-                    duration=source_metadata.get("duration"),
-                    language=source_metadata.get("language"),
-                )
-
-                # Enrich with additional metadata
-                self.metadata_manager.enrich_media_file(
-                    media_file, self.repos.media, extract_source_metadata=True
-                )
-
-                # Update job with media file ID
-                self.repos.jobs.update(
-                    job.id,
-                    media_file_id=media_file.id,
-                    output_path=str(downloaded_file),
-                )
+                    "source_id": video_id,
+                    "title": source_metadata.get("title", downloaded_file.stem),
+                    "description": source_metadata.get("description"),
+                    "uploader": source_metadata.get("uploader"),
+                    "uploader_id": source_metadata.get("uploader_id"),
+                    "upload_date": source_metadata.get("upload_date"),
+                    "view_count": source_metadata.get("view_count"),
+                    "like_count": source_metadata.get("like_count"),
+                    "duration": source_metadata.get("duration"),
+                    "language": source_metadata.get("language"),
+                }
 
                 # If we used temp processing, move file to final destination
-                if is_nas and temp_dir:
-                    self.logger.info("Moving video to NAS destination...")
+                if is_remote and temp_dir:
+                    self.logger.info("Moving video to remote storage destination...")
                     final_file_path = output_file or (output_dir / downloaded_file.name)
 
-                    if self._move_file_to_nas(downloaded_file, final_file_path):
+                    if self.storage_adapter.move_file(downloaded_file, final_file_path):
                         self.logger.info(
                             f"Successfully moved video to NAS: {final_file_path}"
                         )
 
-                        # Check if a media file with this path already exists
-                        existing_media = self.repos.media.get_by_file_path(
-                            str(final_file_path)
-                        )
-                        if existing_media:
-                            # Delete the old record and update the current one
-                            self.logger.info(
-                                f"Found existing media file {existing_media.id} with same path, updating it"
-                            )
-                            self.repos.media.delete(existing_media.id)
-
-                        # Update media file record with final path
-                        self.repos.media.update(
-                            media_file.id,
-                            file_path=str(final_file_path),
-                            file_name=final_file_path.name,
-                        )
-
-                        # Update job status
-                        self.repos.jobs.update_status(
-                            job.id, ProcessingStatus.COMPLETED
-                        )
-
                         # Clean up temp directory
-                        self._cleanup_temp_directory(temp_dir)
+                        self.storage_adapter.cleanup_temp_dir(temp_dir)
                         self.logger.info(f"Cleaned up temp directory: {temp_dir}")
+
+                        # Update metadata with final path
+                        file_metadata["file_path"] = str(final_file_path)
+                        file_metadata["file_name"] = final_file_path.name
+                        file_metadata["nas_processing"] = True
+                        file_metadata["original_path"] = str(downloaded_file)
+
+                        metadata = {
+                            **file_metadata,
+                            "nas_processing": True,
+                            "original_path": str(downloaded_file),
+                        }
+                        if job_id:
+                            metadata["job_id"] = job_id
 
                         return ProcessingResult(
                             success=True,
-                            message="Video downloaded and moved to NAS successfully",
+                            message="Video downloaded and moved to remote storage successfully",
                             output_path=str(final_file_path),
-                            metadata={
-                                "media_file_id": media_file.id,
-                                "job_id": job.id,
-                                "nas_processing": True,
-                            },
+                            metadata=metadata,
                         )
                     else:
-                        self.logger.error("Failed to move video to NAS")
-                        self.repos.jobs.update_status(
-                            job.id,
-                            ProcessingStatus.FAILED,
-                            error_message="Failed to move to NAS",
-                        )
+                        self.logger.error("Failed to move video to remote storage")
+                        metadata = {
+                            **file_metadata,
+                            "nas_processing": True,
+                            "error": "Failed to move to remote storage",
+                        }
+                        if job_id:
+                            metadata["job_id"] = job_id
                         return ProcessingResult(
                             success=False,
                             message="Video downloaded but failed to move to NAS",
                             errors=["Failed to move file to final destination"],
+                            metadata=metadata,
                         )
                 else:
-                    # For local downloads, update job status
-                    self.repos.jobs.update_status(job.id, ProcessingStatus.COMPLETED)
-
+                    # For local downloads
                     final_file_path = downloaded_file
                     if output_file and final_file_path.exists():
                         output_file.parent.mkdir(parents=True, exist_ok=True)
                         if final_file_path.resolve() != output_file.resolve():
                             final_file_path.replace(output_file)
-                        self.repos.media.update(
-                            media_file.id,
-                            file_path=str(output_file),
-                            file_name=output_file.name,
-                        )
-                        self.repos.jobs.update(job.id, output_path=str(output_file))
+                        # Update metadata with final path
+                        file_metadata["file_path"] = str(output_file)
+                        file_metadata["file_name"] = output_file.name
                         final_file_path = output_file
 
+                    metadata = {
+                        **file_metadata,
+                        "nas_processing": False,
+                    }
+                    if job_id:
+                        metadata["job_id"] = job_id
                     return ProcessingResult(
                         success=True,
-                        message="Video downloaded successfully",
+                        message=f"Video downloaded successfully: {final_file_path.name}",
                         output_path=str(final_file_path),
-                        metadata={
-                            "media_file_id": media_file.id,
-                            "job_id": job.id,
-                            "nas_processing": False,
-                        },
+                        metadata=metadata,
                     )
             else:
-                self.repos.jobs.update_status(
-                    job.id, ProcessingStatus.FAILED, error_message="Download failed"
-                )
+                metadata = {"error": "Download failed", "source_url": url}
+                if job_id:
+                    metadata["job_id"] = job_id
                 return ProcessingResult(
                     success=False,
                     message="Video download failed",
                     errors=["No video file found after download"],
+                    metadata=metadata,
                 )
 
         except Exception as e:
@@ -473,47 +442,6 @@ class VideoDownloadService(BaseService):
 
         return get_format_selector(quality, format)
 
-    def _is_nas_path(self, path: Union[str, Path]) -> bool:
-        """Check if path is on NAS."""
-        path_str = str(path)
-        return any(
-            nas_indicator in path_str.lower()
-            for nas_indicator in [
-                "/volumes/",
-                "/mnt/",
-                "nas",
-                "network",
-                "smb://",
-                "nfs://",
-            ]
-        )
-
-    def _get_temp_processing_dir(self, job_id: int) -> Path:
-        """Get temporary processing directory for job."""
-        temp_dir = self.config.video.temp_dir / str(job_id)
-        temp_dir.mkdir(parents=True, exist_ok=True)
-        return temp_dir
-
-    def _move_file_to_nas(self, source_file: Path, dest_file: Path) -> bool:
-        """Move file to NAS destination."""
-        try:
-            import shutil
-
-            dest_file.parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(source_file), str(dest_file))
-            return True
-        except Exception as e:
-            self.logger.error(f"Failed to move file to NAS: {e}")
-            return False
-
-    def _cleanup_temp_directory(self, temp_dir: Path):
-        """Clean up temporary directory."""
-        try:
-            import shutil
-
-            shutil.rmtree(temp_dir)
-        except Exception as e:
-            self.logger.warning(f"Failed to clean up temp directory {temp_dir}: {e}")
 
     def _extract_video_id_from_url(self, url: str) -> str:
         """Extract video ID from URL."""
@@ -524,148 +452,6 @@ class VideoDownloadService(BaseService):
                 return url.split("youtu.be/")[1].split("?")[0]
         return "unknown"
 
-    def _get_playlist_progress(self, playlist_id: str) -> Dict[str, int]:
-        """Get playlist download progress."""
-        try:
-            # Get playlist from database
-            playlist = self.repos.playlists.get_by_playlist_id(playlist_id)
-            if not playlist:
-                return {"total": 0, "completed": 0, "failed": 0, "remaining": 0}
-
-            # Get playlist videos
-            playlist_videos = self.repos.playlist_videos.get_by_playlist_id(playlist.id)
-            total = len(playlist_videos)
-
-            completed = 0
-            failed = 0
-
-            for pv in playlist_videos:
-                media_file = self.repos.media.get_by_id(pv.media_file_id)
-                if media_file and media_file.file_path:
-                    file_path = Path(media_file.file_path)
-                    if file_path.exists():
-                        # Check if has transcription
-                        if self._check_video_has_transcription(media_file):
-                            completed += 1
-                        else:
-                            failed += 1
-                    else:
-                        failed += 1
-                else:
-                    failed += 1
-
-            remaining = total - completed - failed
-
-            return {
-                "total": total,
-                "completed": completed,
-                "failed": failed,
-                "remaining": remaining,
-            }
-
-        except Exception as e:
-            self.logger.error(f"Failed to get playlist progress: {e}")
-            return {"total": 0, "completed": 0, "failed": 0, "remaining": 0}
-
-    def _get_failed_videos(self, playlist_id: str) -> List[Dict[str, Any]]:
-        """Get failed videos from playlist."""
-        try:
-            # Get playlist from database
-            playlist = self.repos.playlists.get_by_playlist_id(playlist_id)
-            if not playlist:
-                return []
-
-            # Get playlist videos
-            playlist_videos = self.repos.playlist_videos.get_by_playlist_id(playlist.id)
-            failed_videos = []
-
-            for pv in playlist_videos:
-                media_file = self.repos.media.get_by_id(pv.media_file_id)
-                if media_file and media_file.file_path:
-                    file_path = Path(media_file.file_path)
-                    if not file_path.exists():
-                        failed_videos.append(
-                            {
-                                "position": pv.position,
-                                "video_title": pv.video_title or "Unknown",
-                                "reason": "File missing",
-                            }
-                        )
-                    elif not self._check_video_has_transcription(media_file):
-                        failed_videos.append(
-                            {
-                                "position": pv.position,
-                                "video_title": pv.video_title or "Unknown",
-                                "reason": "No transcription",
-                            }
-                        )
-                else:
-                    failed_videos.append(
-                        {
-                            "position": pv.position,
-                            "video_title": pv.video_title or "Unknown",
-                            "reason": "Media file not found",
-                        }
-                    )
-
-            return failed_videos
-
-        except Exception as e:
-            self.logger.error(f"Failed to get failed videos: {e}")
-            return []
-
-    def _check_video_has_transcription(self, media_file) -> bool:
-        """Check if video has transcription."""
-        try:
-            if not media_file or not media_file.file_path:
-                return False
-
-            file_path = Path(media_file.file_path)
-            if not file_path.exists():
-                return False
-
-            # Check for transcription files
-            base_name = file_path.stem
-            transcription_files = [
-                file_path.parent / f"{base_name}.srt",
-                file_path.parent / f"{base_name}.vtt",
-                file_path.parent / f"{base_name}.json",
-            ]
-
-            return any(f.exists() for f in transcription_files)
-
-        except Exception as e:
-            self.logger.error(f"Failed to check transcription: {e}")
-            return False
-
-    def download_playlist_with_transcription(
-        self,
-        url: str,
-        output_path: Optional[Union[str, Path]] = None,
-        continue_download: bool = True,
-        **kwargs,
-    ) -> Dict[str, Any]:
-        """Download playlist with transcription support."""
-        try:
-            # This method would integrate with PlaylistService
-            # For now, return a placeholder implementation
-            from modules.video.services.playlist_service import PlaylistService
-
-            playlist_service = PlaylistService(
-                self.config, verbose=self.verbose, db_service=self.db_factory
-            )
-            result = playlist_service.download_playlist(url, output_path, **kwargs)
-
-            # Add transcription logic here if needed
-            return result
-
-        except Exception as e:
-            self.logger.error(f"Playlist download with transcription failed: {e}")
-            return {
-                "success": False,
-                "message": f"Playlist download failed: {e}",
-                "errors": [str(e)],
-            }
 
     def _check_existing_video(self, file_path: Path, url: str) -> Dict[str, Any]:
         """Check if video file exists and has subtitles."""
@@ -682,8 +468,13 @@ class VideoDownloadService(BaseService):
 
         result["exists"] = True
 
-        # Check for subtitles
-        has_subtitles = self._has_whisper_subtitles(file_path)
+        # Check for subtitles using TranscriptionService
+        from modules.video.services.transcription_service import TranscriptionService
+
+        transcription_service = TranscriptionService(
+            self.config, verbose=self.verbose, db_service=self.db_factory
+        )
+        has_subtitles = transcription_service.has_whisper_subtitles(file_path)
         result["has_subtitles"] = has_subtitles
 
         if has_subtitles:
@@ -695,40 +486,3 @@ class VideoDownloadService(BaseService):
 
         return result
 
-    def _has_whisper_subtitles(self, file_path: Path) -> bool:
-        """Check if video file has Whisper subtitles."""
-        try:
-            # Use ffprobe to check for subtitle tracks
-            cmd = [
-                "ffprobe",
-                "-v",
-                "quiet",
-                "-print_format",
-                "json",
-                "-show_streams",
-                "-show_format",
-                str(file_path),
-            ]
-
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
-
-            if result.returncode != 0:
-                return False
-
-            import json
-
-            data = json.loads(result.stdout)
-
-            # Check for subtitle streams
-            for stream in data.get("streams", []):
-                if stream.get("codec_type") == "subtitle":
-                    # Check if it's a Whisper subtitle
-                    title = stream.get("tags", {}).get("title", "")
-                    if "whisper" in title.lower() or "whisperai" in title.lower():
-                        return True
-
-            return False
-
-        except Exception as e:
-            self.logger.warning(f"Error checking subtitles for {file_path}: {e}")
-            return False

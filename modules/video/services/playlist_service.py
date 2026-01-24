@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional, Union
 from core.base import ProcessingResult
 from core.base_service import BaseService
 from core.config import Config
-from database.models import MediaType, ProcessingStatus
+from infrastructure.storage import NASStorageAdapter, StorageAdapter
 from utils.cookie_manager import CookieManager
 
 
@@ -36,6 +36,11 @@ class PlaylistService(BaseService):
 
         self.metadata_extractor = MetadataExtractor(config, verbose=verbose)
         self.metadata_manager = MetadataManager(config, verbose=verbose)
+
+        # Initialize storage adapter
+        self.storage_adapter: StorageAdapter = NASStorageAdapter(
+            config.video.temp_dir, logger=self.logger
+        )
 
     def download_playlist(
         self, url: str, output_path: Optional[Union[str, Path]] = None, **kwargs
@@ -76,66 +81,27 @@ class PlaylistService(BaseService):
                 repo_root = get_default_data_dir().parent
                 playlist_dir = repo_root / "downloads" / folder_name
 
-            # Check if output is on NAS and set up temp processing if needed
-            is_nas = self._is_nas_path(playlist_dir)
+            # Check if output is on remote storage and set up temp processing if needed
+            is_remote = self.storage_adapter.is_remote(playlist_dir)
 
-            # Create processing job
-            job = self.repos.jobs.create(
-                media_file_id=None,  # Will be updated after processing
-                job_type="download_playlist",
-                input_path=url,
-                output_path=str(playlist_dir),
-                parameters=str(kwargs),
-            )
-            self.logger.info(f"Created playlist processing job: {job.id}")
+            # Get job_id if provided (from use case layer) - for temp directory creation
+            job_id = kwargs.get("job_id")
 
             temp_dir = None
             processing_dir = playlist_dir
 
-            if is_nas:
+            if is_remote and job_id:
                 # Create job-specific temp processing directory with playlist folder
-                temp_dir = self._get_temp_processing_dir(job.id)
+                temp_dir = self.storage_adapter.get_temp_processing_dir(job_id)
                 processing_dir = temp_dir / folder_name
                 self.logger.info(
-                    f"NAS detected for playlist, using temp processing: {temp_dir}"
+                    f"Remote storage detected for playlist, using temp processing: {temp_dir}"
                 )
                 self.logger.info(f"Playlist will be processed in: {processing_dir}")
 
             processing_dir.mkdir(parents=True, exist_ok=True)
 
-            # Create or update playlist record in database
-            existing_playlist = self.repos.playlists.get_by_playlist_id(playlist_id)
-            if existing_playlist:
-                # Update existing playlist
-                existing_playlist.title = playlist_name
-                existing_playlist.description = playlist_info.get("description")
-                existing_playlist.uploader = playlist_info.get("uploader")
-                existing_playlist.uploader_id = playlist_info.get("uploader_id")
-                existing_playlist.source_url = url
-                existing_playlist.source_platform = "youtube"
-                existing_playlist.video_count = playlist_info.get("playlist_count")
-                existing_playlist.view_count = playlist_info.get("view_count")
-                existing_playlist.thumbnail_url = playlist_info.get("thumbnail")
-                playlist_record = existing_playlist
-            else:
-                playlist_record = self.repos.playlists.create(
-                    playlist_id=playlist_id,
-                    title=playlist_name,
-                    description=playlist_info.get("description"),
-                    uploader=playlist_info.get("uploader"),
-                    uploader_id=playlist_info.get("uploader_id"),
-                    source_url=url,
-                    source_platform="youtube",
-                    video_count=playlist_info.get("playlist_count"),
-                    view_count=playlist_info.get("view_count"),
-                    thumbnail_url=playlist_info.get("thumbnail"),
-                )
-
             self.logger.info(f"Downloading playlist to: {playlist_dir}")
-            self.logger.info(f"Playlist record: {playlist_record.id}")
-
-            # Mark job as processing (sets started_at for duration tracking)
-            self.repos.jobs.update_status(job.id, ProcessingStatus.PROCESSING)
 
             # Download playlist using yt-dlp Python package
             self.logger.info(f"Downloading playlist from: {url}")
@@ -171,13 +137,13 @@ class PlaylistService(BaseService):
                     f"Processing {len(downloaded_videos)} downloaded videos from playlist"
                 )
 
-                # Process each video (metadata only, no transcription)
+                # Process each video (extract metadata for use case layer)
                 successful_downloads = []
                 failed_downloads = []
 
                 for position, video_path in enumerate(downloaded_videos, 1):
                     try:
-                        # Extract video metadata and create/update media file record
+                        # Extract video metadata
                         video_id = self._extract_video_id_from_path(video_path)
 
                         # Get source metadata for this video
@@ -187,98 +153,91 @@ class PlaylistService(BaseService):
                             )
                         )
 
-                        # Create media file record
+                        # Prepare metadata for use case layer to handle persistence
                         from utils.helpers import get_file_hash, get_file_type
 
-                        media_file = self.repos.media.create(
-                            file_path=str(video_path),
-                            file_name=video_path.name,
-                            file_size=video_path.stat().st_size,
-                            file_hash=get_file_hash(video_path),
-                            media_type=MediaType.VIDEO,
-                            mime_type=get_file_type(video_path),
-                            source_url=f"https://www.youtube.com/watch?v={video_id}",
-                            source_platform="youtube",
-                            source_id=video_id,
-                            title=source_metadata.get("title", video_path.stem),
-                            description=source_metadata.get("description"),
-                            uploader=source_metadata.get("uploader"),
-                            uploader_id=source_metadata.get("uploader_id"),
-                            upload_date=source_metadata.get("upload_date"),
-                            view_count=source_metadata.get("view_count"),
-                            like_count=source_metadata.get("like_count"),
-                            duration=source_metadata.get("duration"),
-                            language=source_metadata.get("language"),
-                        )
+                        video_metadata = {
+                            "file_path": str(video_path),
+                            "file_name": video_path.name,
+                            "file_size": video_path.stat().st_size,
+                            "file_hash": get_file_hash(video_path),
+                            "mime_type": get_file_type(video_path),
+                            "source_url": f"https://www.youtube.com/watch?v={video_id}",
+                            "source_platform": "youtube",
+                            "source_id": video_id,
+                            "title": source_metadata.get("title", video_path.stem),
+                            "description": source_metadata.get("description"),
+                            "uploader": source_metadata.get("uploader"),
+                            "uploader_id": source_metadata.get("uploader_id"),
+                            "upload_date": source_metadata.get("upload_date"),
+                            "view_count": source_metadata.get("view_count"),
+                            "like_count": source_metadata.get("like_count"),
+                            "duration": source_metadata.get("duration"),
+                            "language": source_metadata.get("language"),
+                            "position": position,
+                        }
 
-                        # Enrich with additional metadata
-                        self.metadata_manager.enrich_media_file(
-                            media_file, self.repos.media, extract_source_metadata=True
-                        )
-
-                        # Link video to playlist
-                        self.repos.playlist_videos.add_video_to_playlist(
-                            playlist_id=playlist_record.id,
-                            media_file_id=media_file.id,
-                            position=position,
-                            video_title=media_file.title,
-                        )
-
-                        successful_downloads.append(str(video_path))
+                        successful_downloads.append({
+                            "path": str(video_path),
+                            "metadata": video_metadata,
+                        })
 
                     except Exception as e:
                         self.logger.error(f"Failed to process {video_path.name}: {e}")
                         failed_downloads.append(str(video_path))
 
                 # If we used temp processing, move entire playlist directory to final destination
-                if is_nas and temp_dir:
+                if is_remote and temp_dir:
                     self.logger.info("Moving playlist directory to NAS destination...")
 
                     # Move the entire playlist directory from temp to final destination
-                    if self._move_playlist_to_final_destination(
-                        processing_dir, playlist_dir
-                    ):
+                    if self.storage_adapter.move_file(processing_dir, playlist_dir):
                         self.logger.info(
                             f"Successfully moved playlist directory to NAS: {playlist_dir}"
                         )
 
-                        # Update job status to completed
-                        self.repos.jobs.update_status(
-                            job.id, ProcessingStatus.COMPLETED
-                        )
-
                         # Clean up temp directory after successful move
-                        self._cleanup_temp_directory(temp_dir)
+                        self.storage_adapter.cleanup_temp_dir(temp_dir)
                         self.logger.info(f"Cleaned up temp directory: {temp_dir}")
                     else:
                         self.logger.error("Failed to move playlist directory to NAS")
-                        self.repos.jobs.update_status(
-                            job.id,
-                            ProcessingStatus.FAILED,
-                            error_message="Failed to move playlist to NAS",
-                        )
+                        metadata = {
+                            "playlist_title": playlist_name,
+                            "playlist_id": playlist_id,
+                            "error": "Failed to move playlist to NAS",
+                        }
+                        if job_id:
+                            metadata["job_id"] = job_id
                         return ProcessingResult.error_result(
                             message="Playlist downloaded but failed to move to NAS",
-                            errors=[
-                                "Failed to move playlist directory to final destination"
-                            ],
+                            errors=["Failed to move playlist directory to final destination"],
+                            metadata=metadata,
                         )
-                else:
-                    # For local downloads, update job status
-                    self.repos.jobs.update_status(job.id, ProcessingStatus.COMPLETED)
+
+                # Prepare metadata for use case layer
+                metadata = {
+                    "playlist_title": playlist_name,
+                    "playlist_id": playlist_id,
+                    "description": playlist_info.get("description"),
+                    "uploader": playlist_info.get("uploader"),
+                    "uploader_id": playlist_info.get("uploader_id"),
+                    "playlist_count": playlist_info.get("playlist_count"),
+                    "view_count": playlist_info.get("view_count"),
+                    "thumbnail": playlist_info.get("thumbnail"),
+                    "total_videos": len(downloaded_videos),
+                    "successful_downloads": len(successful_downloads),
+                    "failed_downloads": len(failed_downloads),
+                    "downloaded_videos": successful_downloads,
+                    "nas_processing": is_remote,
+                    "video_count": len(successful_downloads),
+                }
+                if job_id:
+                    metadata["job_id"] = job_id
 
                 return ProcessingResult.success_result(
                     message=f"Playlist downloaded successfully: {len(successful_downloads)} videos",
-                    output_path=playlist_dir,
-                    metadata={
-                        "playlist_title": playlist_name,
-                        "playlist_id": playlist_id,
-                        "total_videos": len(downloaded_videos),
-                        "successful_downloads": len(successful_downloads),
-                        "failed_downloads": len(failed_downloads),
-                        "nas_processing": is_nas,
-                        "videos_downloaded": len(successful_downloads),
-                    },
+                    output_path=str(playlist_dir),
+                    metadata=metadata,
                 )
             else:
                 return ProcessingResult.error_result(
@@ -381,42 +340,158 @@ class PlaylistService(BaseService):
             filename = filename[:max_length]
         return filename
 
-    def _is_nas_path(self, path: Union[str, Path]) -> bool:
-        """Check if path is on NAS."""
-        path_str = str(path)
-        return any(
-            nas_indicator in path_str.lower()
-            for nas_indicator in [
-                "/volumes/",
-                "/mnt/",
-                "nas",
-                "network",
-                "smb://",
-                "nfs://",
-            ]
-        )
 
-    def _get_temp_processing_dir(self, job_id: int) -> Path:
-        """Get temporary processing directory for job."""
-        temp_dir = self.config.video.temp_dir / str(job_id)
-        temp_dir.mkdir(parents=True, exist_ok=True)
-        return temp_dir
+    def get_playlist_progress(self, playlist_id: str) -> Dict[str, int]:
+        """
+        Get playlist download progress.
 
-    def _move_playlist_to_final_destination(
-        self, source_dir: Path, dest_dir: Path
-    ) -> bool:
-        """Move playlist directory to final destination."""
+        Args:
+            playlist_id: Playlist ID
+
+        Returns:
+            Dictionary with progress information (total, completed, failed, remaining)
+        """
         try:
-            dest_dir.parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(source_dir), str(dest_dir))
-            return True
-        except Exception as e:
-            self.logger.error(f"Failed to move playlist directory: {e}")
-            return False
+            # Get playlist from database
+            playlist = self.repos.playlists.get_by_playlist_id(playlist_id)
+            if not playlist:
+                return {"total": 0, "completed": 0, "failed": 0, "remaining": 0}
 
-    def _cleanup_temp_directory(self, temp_dir: Path):
-        """Clean up temporary directory."""
-        try:
-            shutil.rmtree(temp_dir)
+            # Get playlist videos
+            playlist_videos = self.repos.playlist_videos.get_by_playlist_id(playlist.id)
+            total = len(playlist_videos)
+
+            completed = 0
+            failed = 0
+
+            # Import here to avoid circular dependency
+            from modules.video.services.transcription_service import TranscriptionService
+
+            transcription_service = TranscriptionService(
+                self.config, verbose=self.verbose, db_service=self.db_factory
+            )
+
+            for pv in playlist_videos:
+                media_file = self.repos.media.get_by_id(pv.media_file_id)
+                if media_file and media_file.file_path:
+                    file_path = Path(media_file.file_path)
+                    if file_path.exists():
+                        # Check if has transcription using TranscriptionService
+                        if transcription_service.has_transcription(media_file):
+                            completed += 1
+                        else:
+                            failed += 1
+                    else:
+                        failed += 1
+                else:
+                    failed += 1
+
+            remaining = total - completed - failed
+
+            return {
+                "total": total,
+                "completed": completed,
+                "failed": failed,
+                "remaining": remaining,
+            }
+
         except Exception as e:
-            self.logger.warning(f"Failed to clean up temp directory {temp_dir}: {e}")
+            self.logger.error(f"Failed to get playlist progress: {e}")
+            return {"total": 0, "completed": 0, "failed": 0, "remaining": 0}
+
+    def get_failed_videos(self, playlist_id: str) -> List[Dict[str, Any]]:
+        """
+        Get failed videos from playlist.
+
+        Args:
+            playlist_id: Playlist ID
+
+        Returns:
+            List of failed videos with position, title, and reason
+        """
+        try:
+            # Get playlist from database
+            playlist = self.repos.playlists.get_by_playlist_id(playlist_id)
+            if not playlist:
+                return []
+
+            # Get playlist videos
+            playlist_videos = self.repos.playlist_videos.get_by_playlist_id(playlist.id)
+            failed_videos = []
+
+            # Import here to avoid circular dependency
+            from modules.video.services.transcription_service import TranscriptionService
+
+            transcription_service = TranscriptionService(
+                self.config, verbose=self.verbose, db_service=self.db_factory
+            )
+
+            for pv in playlist_videos:
+                media_file = self.repos.media.get_by_id(pv.media_file_id)
+                if media_file and media_file.file_path:
+                    file_path = Path(media_file.file_path)
+                    if not file_path.exists():
+                        failed_videos.append(
+                            {
+                                "position": pv.position,
+                                "video_title": pv.video_title or "Unknown",
+                                "reason": "File missing",
+                            }
+                        )
+                    elif not transcription_service.has_transcription(media_file):
+                        failed_videos.append(
+                            {
+                                "position": pv.position,
+                                "video_title": pv.video_title or "Unknown",
+                                "reason": "No transcription",
+                            }
+                        )
+                else:
+                    failed_videos.append(
+                        {
+                            "position": pv.position,
+                            "video_title": pv.video_title or "Unknown",
+                            "reason": "Media file not found",
+                        }
+                    )
+
+            return failed_videos
+
+        except Exception as e:
+            self.logger.error(f"Failed to get failed videos: {e}")
+            return []
+
+    def download_playlist_with_transcription(
+        self,
+        url: str,
+        output_path: Optional[Union[str, Path]] = None,
+        continue_download: bool = True,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """
+        Download playlist with transcription support.
+
+        Args:
+            url: Playlist URL
+            output_path: Optional output directory
+            continue_download: Whether to continue from previous downloads
+            **kwargs: Additional download options
+
+        Returns:
+            Dictionary with download results
+        """
+        try:
+            # Download playlist first
+            result = self.download_playlist(url, output_path, **kwargs)
+
+            # Add transcription logic here if needed
+            # This is a placeholder for future transcription integration
+            return result
+
+        except Exception as e:
+            self.logger.error(f"Playlist download with transcription failed: {e}")
+            return {
+                "success": False,
+                "message": f"Playlist download failed: {e}",
+                "errors": [str(e)],
+            }

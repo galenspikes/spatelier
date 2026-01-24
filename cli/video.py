@@ -94,13 +94,12 @@ def download(
         )
 
         with ServiceFactory(config, verbose=verbose) as services:
-            result = services.playlist.download_playlist(
+            result = services.download_playlist_use_case.execute(
                 url=processed_url,
                 output_path=output,
                 quality=quality,
                 format=format,
                 max_videos=max_videos,
-                transcribe=transcribe,
             )
 
             if result.is_successful():
@@ -126,13 +125,12 @@ def download(
         logger.info(f"Detected playlist URL: {processed_url}")
         console.print(f"[yellow]📼 Playlist detected![/yellow] Downloading playlist...")
         with ServiceFactory(config, verbose=verbose) as services:
-            result = services.playlist.download_playlist(
+            result = services.download_playlist_use_case.execute(
                 url=processed_url,
                 output_path=output,
                 quality=quality,
                 format=format,
                 max_videos=max_videos,
-                transcribe=transcribe,
             )
 
             if result.is_successful():
@@ -156,24 +154,14 @@ def download(
                             str(video_file)
                         )
                         media_file_id = media_record.id if media_record else None
-                        transcribe_ok = services.transcription.transcribe_video(
-                            video_file, media_file_id=media_file_id
+                        transcribe_ok = services.transcribe_video_use_case.execute(
+                            video_path=video_file,
+                            media_file_id=media_file_id,
+                            embed_subtitles=True,
                         )
                         if transcribe_ok:
                             transcribed += 1
-                            embed_ok = services.transcription.embed_subtitles(
-                                video_file, video_file, media_file_id=media_file_id
-                            )
-                            if embed_ok:
-                                embedded += 1
-                            else:
-                                console.print(
-                                    Panel(
-                                        f"[yellow]![/yellow] Embedding failed: {video_file.name}",
-                                        title="Warning",
-                                        border_style="yellow",
-                                    )
-                                )
+                            embedded += 1
                         else:
                             console.print(
                                 Panel(
@@ -213,8 +201,11 @@ def download(
     else:
         # Single video download
         with ServiceFactory(config, verbose=verbose) as services:
-            result = services.video_download.download_video(
-                processed_url, output, quality=quality, format=format
+            result = services.download_video_use_case.execute(
+                url=processed_url,
+                output_path=output,
+                quality=quality,
+                format=format,
             )
 
             if result.is_successful():
@@ -224,24 +215,12 @@ def download(
                         if result.metadata
                         else None
                     )
-                    transcribe_ok = services.transcription.transcribe_video(
-                        result.output_path, media_file_id=media_file_id
+                    transcribe_ok = services.transcribe_video_use_case.execute(
+                        video_path=Path(result.output_path),
+                        media_file_id=media_file_id,
+                        embed_subtitles=True,
                     )
-                    if transcribe_ok:
-                        embed_ok = services.transcription.embed_subtitles(
-                            result.output_path,
-                            result.output_path,
-                            media_file_id=media_file_id,
-                        )
-                        if not embed_ok:
-                            console.print(
-                                Panel(
-                                    "[yellow]![/yellow] Transcription completed but embedding failed.",
-                                    title="Warning",
-                                    border_style="yellow",
-                                )
-                            )
-                    else:
+                    if not transcribe_ok:
                         console.print(
                             Panel(
                                 "[yellow]![/yellow] Transcription failed. The original file is kept.\n"
@@ -345,31 +324,32 @@ def download_enhanced(
             console.print(
                 "[yellow]📺 Channel detected![/yellow] Converting to playlist download..."
             )
-            download_result = services.playlist.download_playlist(
+            download_result = services.download_playlist_use_case.execute(
                 url=processed_url,
                 output_path=output,
                 quality=quality,
                 format=format,
                 max_videos=max_videos,
-                transcribe=transcribe,
             )
         elif is_playlist:
             logger.info(f"Detected playlist URL: {processed_url}")
             console.print(
                 "[yellow]📼 Playlist detected![/yellow] Downloading playlist..."
             )
-            download_result = services.playlist.download_playlist(
+            download_result = services.download_playlist_use_case.execute(
                 url=processed_url,
                 output_path=output,
                 quality=quality,
                 format=format,
                 max_videos=max_videos,
-                transcribe=transcribe,
             )
         else:
             # First download the video
-            download_result = services.video_download.download_video(
-                processed_url, output, quality=quality, format=format
+            download_result = services.download_video_use_case.execute(
+                url=processed_url,
+                output_path=output,
+                quality=quality,
+                format=format,
             )
 
         if not download_result.is_successful():
@@ -403,27 +383,16 @@ def download_enhanced(
                         str(video_file)
                     )
                     media_file_id = media_record.id if media_record else None
-                    transcribe_ok = services.transcription.transcribe_video(
-                        video_file,
+                    transcribe_ok = services.transcribe_video_use_case.execute(
+                        video_path=video_file,
                         media_file_id=media_file_id,
                         language=transcription_language,
                         model_size=transcription_model,
+                        embed_subtitles=True,
                     )
                     if transcribe_ok:
                         transcribed += 1
-                        embed_ok = services.transcription.embed_subtitles(
-                            video_file, video_file, media_file_id=media_file_id
-                        )
-                        if embed_ok:
-                            embedded += 1
-                        else:
-                            console.print(
-                                Panel(
-                                    f"[yellow]![/yellow] Embedding failed: {video_file.name}",
-                                    title="Warning",
-                                    border_style="yellow",
-                                )
-                            )
+                        embedded += 1
                     else:
                         console.print(
                             Panel(
@@ -436,33 +405,22 @@ def download_enhanced(
                 result.message += f" (transcribed {transcribed}/{len(video_files)})"
             else:
                 media_file_id = download_result.metadata.get("media_file_id")
-                transcribe_result = services.transcription.transcribe_video(
-                    download_result.output_path,
+                transcribe_result = services.transcribe_video_use_case.execute(
+                    video_path=Path(download_result.output_path),
                     media_file_id=media_file_id,
                     language=transcription_language,
                     model_size=transcription_model,
+                    embed_subtitles=True,
                 )
 
                 if transcribe_result:
-                    # Embed subtitles into the original file
-                    embed_result = services.transcription.embed_subtitles(
-                        download_result.output_path,
-                        download_result.output_path,  # Use same file for output
-                        media_file_id=media_file_id,
-                    )
-
-                    if embed_result:
-                        result = download_result
-                        result.message += " (with transcription and subtitles)"
-                        # Keep the original output path
-                    else:
-                        result = download_result
-                        result.add_warning(
-                            "Transcription completed but subtitle embedding failed"
-                        )
+                    result = download_result
+                    result.message += " (with transcription and subtitles)"
                 else:
                     result = download_result
-                    result.add_warning("Download successful but transcription failed")
+                    result.add_warning(
+                        "Transcription completed but subtitle embedding failed"
+                    )
         else:
             result = download_result
 
@@ -529,8 +487,8 @@ def download_playlist(
 
     with ServiceFactory(config, verbose=verbose) as services:
         # First download the playlist
-        playlist_result = services.playlist.download_playlist(
-            url, output_path=output, quality=quality, format=format
+        playlist_result = services.download_playlist_use_case.execute(
+            url=url, output_path=output, quality=quality, format=format
         )
 
         if not playlist_result.is_successful():
@@ -632,27 +590,14 @@ def embed_subtitles(
     with ServiceFactory(config, verbose=verbose) as services:
         logger.info(f"Transcribing video: {video_file}")
 
-        # Transcribe the video (service handles initialization internally)
-        success = services.transcription.transcribe_video(
-            video_file, language=transcription_language, model_size=transcription_model
-        )
-
-        if not success:
-            console.print(
-                Panel(
-                    "[yellow]![/yellow] Transcription failed. The original file is kept.\n"
-                    'Retry: spatelier video embed-subtitles "<path>" --transcription-model small',
-                    title="Warning",
-                    border_style="yellow",
-                )
-            )
-            return
-
-        logger.info("Transcription completed successfully")
-
-        # Embed subtitles into video (default: overwrite original file)
+        # Transcribe and embed subtitles using use case
         output_file = output_file or video_file
-        success = services.transcription.embed_subtitles(video_file, output_file)
+        success = services.transcribe_video_use_case.execute(
+            video_path=video_file,
+            language=transcription_language,
+            model_size=transcription_model,
+            embed_subtitles=True,
+        )
 
         if success:
             console.print(

@@ -115,6 +115,16 @@ class ITranscriptionService(ABC):
         """Embed subtitles into video file."""
         pass
 
+    @abstractmethod
+    def has_transcription(self, media_file) -> bool:
+        """Check if a media file has transcription."""
+        pass
+
+    @abstractmethod
+    def has_whisper_subtitles(self, file_path: Path) -> bool:
+        """Check if video file has Whisper subtitles embedded."""
+        pass
+
 
 class IPlaylistService(ABC):
     """Interface for playlist service."""
@@ -124,6 +134,27 @@ class IPlaylistService(ABC):
         self, url: str, output_path: Optional[Union[str, Path]] = None, **kwargs
     ) -> Dict[str, Any]:
         """Download playlist without transcription."""
+        pass
+
+    @abstractmethod
+    def get_playlist_progress(self, playlist_id: str) -> Dict[str, int]:
+        """Get playlist download progress."""
+        pass
+
+    @abstractmethod
+    def get_failed_videos(self, playlist_id: str) -> List[Dict[str, Any]]:
+        """Get failed videos from playlist."""
+        pass
+
+    @abstractmethod
+    def download_playlist_with_transcription(
+        self,
+        url: str,
+        output_path: Optional[Union[str, Path]] = None,
+        continue_download: bool = True,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Download playlist with transcription support."""
         pass
 
 
