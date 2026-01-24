@@ -365,9 +365,11 @@ def download_enhanced(
         if transcribe and download_result.output_path:
             if is_channel or is_playlist:
                 playlist_dir = Path(download_result.output_path)
-                video_files = []
-                for ext in config.video_extensions:
-                    video_files.extend(playlist_dir.rglob(f"*{ext}"))
+                video_files = [
+                    file
+                    for ext in config.video_extensions
+                    for file in playlist_dir.rglob(f"*{ext}")
+                ]
                 if max_videos and len(video_files) > max_videos:
                     video_files = sorted(
                         video_files,

@@ -5,12 +5,16 @@ This module provides focused metadata extraction and management functionality.
 """
 
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 from core.base_service import BaseService
 from core.config import Config
 from core.interfaces import IMetadataService
 from database.metadata import MetadataExtractor, MetadataManager
+
+if TYPE_CHECKING:
+    from database.models import MediaFile
+    from database.repository import MediaFileRepository
 
 
 class MetadataService(BaseService, IMetadataService):
@@ -53,7 +57,11 @@ class MetadataService(BaseService, IMetadataService):
             self.logger.error(f"Failed to extract metadata from {url}: {e}")
             return {}
 
-    def enrich_media_file(self, media_file, repository=None) -> Dict[str, Any]:
+    def enrich_media_file(
+        self,
+        media_file: "MediaFile",
+        repository: Optional["MediaFileRepository"] = None,
+    ) -> Dict[str, Any]:
         """
         Enrich media file with additional metadata.
 
@@ -122,7 +130,7 @@ class MetadataService(BaseService, IMetadataService):
         self.logger.debug(f"Prepared metadata update with {len(prepared)} fields")
         return prepared
 
-    def convert_media_file_to_dict(self, media_file) -> Dict[str, Any]:
+    def convert_media_file_to_dict(self, media_file: "MediaFile") -> Dict[str, Any]:
         """
         Convert MediaFile instance to dictionary.
 

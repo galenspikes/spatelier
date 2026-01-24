@@ -15,6 +15,7 @@ from core.config import Config
 from core.interfaces import IPlaylistService
 from infrastructure.storage import NASStorageAdapter, StorageAdapter
 from utils.cookie_manager import CookieManager
+from utils.helpers import YOUTUBE_VIDEO_ID_FILENAME_PATTERN
 
 
 class PlaylistService(BaseService, IPlaylistService):
@@ -300,7 +301,7 @@ class PlaylistService(BaseService, IPlaylistService):
             return None
 
 
-    def _build_playlist_ydl_opts(self, output_dir: Path, **kwargs) -> Dict:
+    def _build_playlist_ydl_opts(self, output_dir: Path, **kwargs) -> Dict[str, Any]:
         """Build yt-dlp options for playlist download."""
         # Output template for playlist
         output_template = str(output_dir / "%(title)s [%(id)s].%(ext)s")
@@ -343,18 +344,16 @@ class PlaylistService(BaseService, IPlaylistService):
 
     def _find_playlist_videos(self, directory: Path) -> List[Path]:
         """Find downloaded video files in playlist directory."""
-        video_extensions = self.config.video_extensions
-        video_files = []
-
-        for ext in video_extensions:
-            video_files.extend(directory.rglob(f"*{ext}"))
-
-        return video_files
+        return [
+            file
+            for ext in self.config.video_extensions
+            for file in directory.rglob(f"*{ext}")
+        ]
 
     def _extract_video_id_from_path(self, video_path: Path) -> str:
         """Extract video ID from file path."""
         # Look for [video_id] pattern in filename
-        match = re.search(r"\[([a-zA-Z0-9_-]{11})\]", video_path.name)
+        match = re.search(YOUTUBE_VIDEO_ID_FILENAME_PATTERN, video_path.name)
         if match:
             return match.group(1)
         return "unknown"
@@ -535,8 +534,9 @@ class PlaylistService(BaseService, IPlaylistService):
             # Download playlist first
             result = self.download_playlist(url, output_path, **kwargs)
 
-            # Add transcription logic here if needed
-            # This is a placeholder for future transcription integration
+            # Note: Transcription for playlists is handled at the use case level
+            # (DownloadPlaylistUseCase) rather than in the service layer.
+            # This method exists to satisfy the interface contract.
             return result
 
         except Exception as e:

@@ -8,7 +8,7 @@ with proper separation of concerns and error handling.
 import shutil
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from core.base import ProcessingResult
 from core.base_service import BaseService
@@ -155,7 +155,8 @@ class AudioExtractionService(BaseService):
         if not url.startswith(("http://", "https://")):
             errors.append("URL must start with http:// or https://")
 
-        if format.lower() not in ["mp3", "wav", "flac", "aac", "ogg", "m4a"]:
+        format_lower = format.lower()
+        if format_lower not in ["mp3", "wav", "flac", "aac", "ogg", "m4a"]:
             errors.append(f"Unsupported format: {format}")
 
         if bitrate < 64 or bitrate > 512:
@@ -258,7 +259,7 @@ class AudioExtractionService(BaseService):
             self.logger.error(f"Failed to create success result: {e}")
             return ProcessingResult.fail(f"Failed to create success result: {e}")
 
-    def _cleanup_temp_directory(self, temp_dir: Path):
+    def _cleanup_temp_directory(self, temp_dir: Path) -> None:
         """Clean up temporary directory."""
         try:
             if temp_dir.exists():
@@ -267,7 +268,7 @@ class AudioExtractionService(BaseService):
         except Exception as e:
             self.logger.warning(f"Failed to cleanup temp directory {temp_dir}: {e}")
 
-    def get_supported_formats(self) -> list[str]:
+    def get_supported_formats(self) -> List[str]:
         """Get list of supported audio formats."""
         return ["mp3", "wav", "flac", "aac", "ogg", "m4a"]
 
