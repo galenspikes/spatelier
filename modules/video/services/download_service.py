@@ -6,12 +6,10 @@ separated from transcription and metadata concerns.
 """
 
 import subprocess
-import tempfile
-import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-from core.base import BaseDownloader, ProcessingResult
+from core.base import ProcessingResult
 from core.base_service import BaseService
 from core.config import Config
 from core.interfaces import IVideoDownloadService
@@ -19,7 +17,13 @@ from database.metadata import MetadataExtractor, MetadataManager
 from infrastructure.storage import NASStorageAdapter, StorageAdapter
 from modules.video.fallback_extractor import FallbackExtractor
 from utils.cookie_manager import CookieManager
-from utils.helpers import get_file_hash, get_file_type, safe_filename
+from utils.helpers import (
+    MIN_VALID_FILE_SIZE,
+    YOUTUBE_VIDEO_ID_PATTERN,
+    get_file_hash,
+    get_file_type,
+    safe_filename,
+)
 from utils.ytdlp_auth_handler import YtDlpAuthHandler
 
 
@@ -129,7 +133,7 @@ class VideoDownloadService(BaseService, IVideoDownloadService):
             # Download using yt-dlp
             downloaded_file = self._download_with_ytdlp(url, processing_path, **kwargs)
 
-            if downloaded_file and downloaded_file.exists():
+            if downloaded_file and downloaded_file.exists() and downloaded_file.stat().st_size >= MIN_VALID_FILE_SIZE:
                 # Extract video metadata
                 video_id = self._extract_video_id_from_url(url)
 
@@ -262,15 +266,20 @@ class VideoDownloadService(BaseService, IVideoDownloadService):
 
         import yt_dlp
 
-        def download_operation():
-            """Inner function for download operation that can be retried."""
+        def download_operation() -> Optional[Path]:
+            """
+            Inner function for download operation that can be retried.
+            
+            Returns:
+                Path to downloaded file if successful, None otherwise.
+            """
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
                 downloaded_file = self._resolve_downloaded_path(ydl, info)
                 if (
                     downloaded_file
                     and downloaded_file.exists()
-                    and downloaded_file.stat().st_size > 0
+                    and downloaded_file.stat().st_size >= MIN_VALID_FILE_SIZE
                 ):
                     return downloaded_file
 
@@ -292,7 +301,7 @@ class VideoDownloadService(BaseService, IVideoDownloadService):
 
 
     def _resolve_downloaded_path(
-        self, ydl, info: Optional[Dict[str, Any]]
+        self, ydl: Any, info: Optional[Dict[str, Any]]
     ) -> Optional[Path]:
         """Resolve downloaded file path from yt-dlp info.
         
@@ -303,7 +312,7 @@ class VideoDownloadService(BaseService, IVideoDownloadService):
             return None
 
         if isinstance(info, dict) and info.get("_type") == "playlist":
-            entries = [entry for entry in info.get("entries") or [] if entry]
+            entries = [entry for entry in info.get("entries", []) if entry]
             if not entries:
                 return None
             info = entries[0]
@@ -317,7 +326,7 @@ class VideoDownloadService(BaseService, IVideoDownloadService):
             file_path = Path(prepared_path)
             
             # Check if the file exists and is valid
-            if file_path.exists() and file_path.stat().st_size > 0:
+            if file_path.exists() and file_path.stat().st_size >= MIN_VALID_FILE_SIZE:
                 return file_path
             
             # If prepare_filename() path doesn't exist, try to find the actual downloaded file
@@ -326,26 +335,35 @@ class VideoDownloadService(BaseService, IVideoDownloadService):
             if output_dir.exists():
                 # Look for files matching the expected pattern (title + video ID)
                 video_id = info.get("id")
-                title = info.get("title", "")
                 
                 if video_id:
                     # Try to find file with video ID in name
                     for ext in self.config.video_extensions:
                         pattern = f"*{video_id}*{ext}"
-                        matches = list(output_dir.glob(pattern))
+                        matches = output_dir.glob(pattern)
                         if matches:
                             # Return the most recently modified matching file
-                            valid_files = [f for f in matches if f.is_file() and f.stat().st_size > 0]
+                            valid_files = [
+                                f
+                                for f in matches
+                                if f.is_file() and f.stat().st_size >= MIN_VALID_FILE_SIZE
+                            ]
                             if valid_files:
                                 return max(valid_files, key=lambda p: p.stat().st_mtime)
                 
                 # Fallback: find most recently modified video file in output directory
                 # This is a last resort if we can't match by video ID
-                candidates = []
-                for ext in self.config.video_extensions:
-                    candidates.extend(output_dir.glob(f"*{ext}"))
+                candidates = [
+                    file
+                    for ext in self.config.video_extensions
+                    for file in output_dir.glob(f"*{ext}")
+                ]
                 
-                valid_candidates = [f for f in candidates if f.is_file() and f.stat().st_size > 0]
+                valid_candidates = [
+                    f
+                    for f in candidates
+                    if f.is_file() and f.stat().st_size >= MIN_VALID_FILE_SIZE
+                ]
                 if valid_candidates:
                     # Return most recent file, but log a warning
                     latest = max(valid_candidates, key=lambda p: p.stat().st_mtime)
@@ -381,11 +399,7 @@ class VideoDownloadService(BaseService, IVideoDownloadService):
         # Extract video ID from URL to validate
         import re
 
-        # Match YouTube URLs including /shorts/, /watch?v=, /v/, /embed/, youtu.be
-        video_id_match = re.search(
-            r'(?:youtube\.com/(?:shorts/|watch\?v=|v/|embed/|[^/]+/.+/|.*[?&]v=)|youtu\.be/)([^"&?/\s]{11})',
-            url,
-        )
+        video_id_match = re.search(YOUTUBE_VIDEO_ID_PATTERN, url)
         if video_id_match:
             expected_id = video_id_match.group(1)
             # Check if the filename contains the expected video ID
@@ -401,7 +415,7 @@ class VideoDownloadService(BaseService, IVideoDownloadService):
         return fallback_file
 
 
-    def _build_ydl_opts(self, output_path: Path, **kwargs) -> Dict:
+    def _build_ydl_opts(self, output_path: Path, **kwargs) -> Dict[str, Any]:
         """Build yt-dlp options."""
         # Output template
         output_template = str(output_path / "%(title)s [%(id)s].%(ext)s")
@@ -445,12 +459,16 @@ class VideoDownloadService(BaseService, IVideoDownloadService):
 
 
     def _extract_video_id_from_url(self, url: str) -> str:
-        """Extract video ID from URL."""
-        if "youtube.com" in url or "youtu.be" in url:
-            if "v=" in url:
-                return url.split("v=")[1].split("&")[0]
-            elif "youtu.be/" in url:
-                return url.split("youtu.be/")[1].split("?")[0]
+        """
+        Extract video ID from URL.
+        
+        Uses regex pattern for consistent extraction across all YouTube URL formats.
+        """
+        import re
+        
+        video_id_match = re.search(YOUTUBE_VIDEO_ID_PATTERN, url)
+        if video_id_match:
+            return video_id_match.group(1)
         return "unknown"
 
 

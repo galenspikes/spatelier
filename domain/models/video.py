@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+from utils.helpers import YOUTUBE_VIDEO_ID_PATTERN
+
 
 @dataclass
 class Video:
@@ -33,12 +35,16 @@ class Video:
             self.video_id = self._extract_video_id()
 
     def _extract_video_id(self) -> Optional[str]:
-        """Extract video ID from URL."""
-        if "youtube.com" in self.url or "youtu.be" in self.url:
-            if "v=" in self.url:
-                return self.url.split("v=")[1].split("&")[0]
-            elif "youtu.be/" in self.url:
-                return self.url.split("youtu.be/")[1].split("?")[0]
+        """
+        Extract video ID from URL.
+        
+        Uses regex pattern for consistent extraction across all YouTube URL formats.
+        """
+        import re
+        
+        video_id_match = re.search(YOUTUBE_VIDEO_ID_PATTERN, self.url)
+        if video_id_match:
+            return video_id_match.group(1)
         return None
 
     def exists(self) -> bool:
@@ -46,8 +52,10 @@ class Video:
         return self.file_path is not None and self.file_path.exists()
 
     def is_complete(self) -> bool:
-        """Check if video download is complete."""
-        if not self.exists():
-            return False
-        # Could add more checks here (file size validation, etc.)
-        return True
+        """
+        Check if video download is complete.
+        
+        Returns:
+            True if file exists and could be validated further (file size, etc.)
+        """
+        return self.exists()  # Could add more checks here (file size validation, etc.)

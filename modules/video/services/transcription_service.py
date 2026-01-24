@@ -54,7 +54,7 @@ class TranscriptionService(BaseService, ITranscriptionService):
         self.model = None
         self.transcription_storage = None
 
-    def _initialize_transcription(self, model_size: Optional[str] = None):
+    def _initialize_transcription(self, model_size: Optional[str] = None) -> bool:
         """Initialize transcription service if not already done.
 
         Returns:
@@ -353,7 +353,7 @@ class TranscriptionService(BaseService, ITranscriptionService):
             if temp_output_path and temp_output_path.exists():
                 temp_output_path.unlink()
 
-    def _create_srt_file(self, subtitle_file: Path, segments: list):
+    def _create_srt_file(self, subtitle_file: Path, segments: List[Dict[str, Any]]) -> None:
         """Create SRT subtitle file from segments."""
         with open(subtitle_file, "w", encoding="utf-8") as f:
             for i, segment in enumerate(segments, 1):
@@ -367,9 +367,13 @@ class TranscriptionService(BaseService, ITranscriptionService):
 
     def _format_timestamp(self, seconds: float) -> str:
         """Format timestamp for SRT format."""
-        hours = int(seconds // 3600)
-        minutes = int((seconds % 3600) // 60)
-        secs = seconds % 60
+        # Constants for time conversion
+        SECONDS_PER_HOUR = 3600
+        SECONDS_PER_MINUTE = 60
+        
+        hours = int(seconds // SECONDS_PER_HOUR)
+        minutes = int((seconds % SECONDS_PER_HOUR) // SECONDS_PER_MINUTE)
+        secs = seconds % SECONDS_PER_MINUTE
         return f"{hours:02d}:{minutes:02d}:{secs:06.3f}".replace(".", ",")
 
     def has_transcription(self, media_file) -> bool:
@@ -429,7 +433,9 @@ class TranscriptionService(BaseService, ITranscriptionService):
                 str(file_path),
             ]
 
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+            # Timeout for ffprobe check (10 seconds should be enough for metadata extraction)
+            FFPROBE_TIMEOUT_SECONDS = 10
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=FFPROBE_TIMEOUT_SECONDS)
 
             if result.returncode != 0:
                 return False
@@ -442,8 +448,8 @@ class TranscriptionService(BaseService, ITranscriptionService):
             for stream in data.get("streams", []):
                 if stream.get("codec_type") == "subtitle":
                     # Check if it's a Whisper subtitle
-                    title = stream.get("tags", {}).get("title", "")
-                    if "whisper" in title.lower() or "whisperai" in title.lower():
+                    title = stream.get("tags", {}).get("title", "").lower()
+                    if "whisper" in title or "whisperai" in title:
                         return True
 
             return False
