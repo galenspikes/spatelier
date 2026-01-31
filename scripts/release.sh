@@ -19,8 +19,9 @@ if [ -z "$VERSION" ]; then
     exit 1
 fi
 
-# Setup logging
-LOG_DIR=".data/logs"
+# Setup logging (use absolute path so tap-repo subshell can still write to it)
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+LOG_DIR="${REPO_ROOT}/.data/logs"
 mkdir -p "$LOG_DIR"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 LOG_FILE="${LOG_DIR}/release_${TAG}_${TIMESTAMP}.log"
