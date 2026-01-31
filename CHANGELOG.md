@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.10] - 2026-01-31
+
+### Fixed
+- Release script: Use absolute path for log file (`REPO_ROOT`) so tap-repo subshell can write to it; fixes `tee: .data/logs/... No such file or directory` and false "Could not update tap repository" warning.
+- Pytest config: Removed duplicate `[tool.pytest.ini_options]` from pyproject.toml so pytest no longer warns "ignoring pytest config in pyproject.toml".
+
+### Changed
+- pytest.ini: Added filter for harmless Alembic "autoincrement only make sense for MySQL" warning (we use SQLite).
+- docs/release-errors-and-warnings.md: Document release script errors/warnings and fixes.
+
+### Added
+- tests/unit/test_release_hygiene.py: Tests that release script uses absolute log path, pytest config is single-source, and Alembic warning filter is present.
+
 ## [0.3.9] - 2026-01-23
 
 ### Fixed
