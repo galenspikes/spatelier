@@ -196,12 +196,7 @@ files = [
     "setup.py",
 ]
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-python_files = ["test_*.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-addopts = "-v --tb=short"
+# Pytest: config lives in pytest.ini (avoids "ignoring pytest config in pyproject.toml" when both exist)
 
 [tool.poetry.group.dev.dependencies]
 psutil = "^7.2.1"
