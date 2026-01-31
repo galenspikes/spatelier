@@ -8,7 +8,7 @@ with proper separation of concerns and error handling.
 import shutil
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from core.base import ProcessingResult
 from core.base_service import BaseService
@@ -25,7 +25,14 @@ class AudioExtractionService(BaseService):
     progress tracking, and resource management.
     """
 
-    def __init__(self, config, verbose: bool = False, db_service=None):
+    def __init__(
+        self,
+        config,
+        verbose: bool = False,
+        db_service=None,
+        audio_converter: Optional[AudioConverter] = None,
+        download_service: Optional[VideoDownloadService] = None,
+    ):
         """
         Initialize audio extraction service.
 
@@ -33,17 +40,19 @@ class AudioExtractionService(BaseService):
             config: Configuration instance
             verbose: Enable verbose logging
             db_service: Optional database service instance
+            audio_converter: Optional AudioConverter (injected dependency)
+            download_service: Optional VideoDownloadService (injected dependency)
         """
         super().__init__(config, verbose, db_service)
         self.logger = self.logger.bind(service="AudioExtractionService")
 
-        # Initialize dependencies
-        self._audio_converter: Optional[AudioConverter] = None
-        self._download_service: Optional[VideoDownloadService] = None
+        # Use injected dependencies or create lazily if not provided
+        self._audio_converter = audio_converter
+        self._download_service = download_service
 
     @property
     def audio_converter(self) -> AudioConverter:
-        """Get audio converter service (lazy initialization)."""
+        """Get audio converter service (lazy initialization if not injected)."""
         if self._audio_converter is None:
             self._audio_converter = AudioConverter(
                 self.config, verbose=self.verbose, db_service=self.db_factory
@@ -52,7 +61,7 @@ class AudioExtractionService(BaseService):
 
     @property
     def download_service(self) -> VideoDownloadService:
-        """Get video download service (lazy initialization)."""
+        """Get video download service (lazy initialization if not injected)."""
         if self._download_service is None:
             self._download_service = VideoDownloadService(
                 self.config, verbose=self.verbose, db_service=self.db_factory
@@ -146,7 +155,8 @@ class AudioExtractionService(BaseService):
         if not url.startswith(("http://", "https://")):
             errors.append("URL must start with http:// or https://")
 
-        if format.lower() not in ["mp3", "wav", "flac", "aac", "ogg", "m4a"]:
+        format_lower = format.lower()
+        if format_lower not in ["mp3", "wav", "flac", "aac", "ogg", "m4a"]:
             errors.append(f"Unsupported format: {format}")
 
         if bitrate < 64 or bitrate > 512:
@@ -249,7 +259,7 @@ class AudioExtractionService(BaseService):
             self.logger.error(f"Failed to create success result: {e}")
             return ProcessingResult.fail(f"Failed to create success result: {e}")
 
-    def _cleanup_temp_directory(self, temp_dir: Path):
+    def _cleanup_temp_directory(self, temp_dir: Path) -> None:
         """Clean up temporary directory."""
         try:
             if temp_dir.exists():
@@ -258,7 +268,7 @@ class AudioExtractionService(BaseService):
         except Exception as e:
             self.logger.warning(f"Failed to cleanup temp directory {temp_dir}: {e}")
 
-    def get_supported_formats(self) -> list[str]:
+    def get_supported_formats(self) -> List[str]:
         """Get list of supported audio formats."""
         return ["mp3", "wav", "flac", "aac", "ogg", "m4a"]
 

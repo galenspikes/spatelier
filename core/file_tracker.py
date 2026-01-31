@@ -215,9 +215,7 @@ class FileTracker:
                 if file_path.is_file():
                     file_id = self.get_file_identifier(file_path)
                     if file_id:
-                        if file_id not in file_map:
-                            file_map[file_id] = []
-                        file_map[file_id].append(file_path)
+                        file_map.setdefault(file_id, []).append(file_path)
 
         # Return only duplicates (more than one file with same identifier)
         duplicates = {

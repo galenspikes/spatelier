@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.9] - 2026-01-23
+
+### Fixed
+- Download service: Fixed glob iterator check in `_resolve_downloaded_path()`. `Path.glob()` returns an iterator that is always truthy; converting to list ensures we only process when files are actually found.
+
+### Changed
+- Code quality improvements: Simplified truthiness checks, list comprehensions, extracted constants, removed unused variables, improved type hints, simplified dict.get() usage, optimized .lower() calls. (12 files)
+
 ## [0.3.8] - 2026-01-22
 
 ### Fixed

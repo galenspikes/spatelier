@@ -17,14 +17,33 @@ A personal tool library for video and music file handling, built with modern Pyt
 
 ```
 spatelier/
-├── cli/                 # Command-line interface modules
+├── cli/                 # Command-line interface (presentation layer)
+├── domain/              # Domain layer (business logic)
+│   ├── models/         # Domain models (Video, Playlist, MediaFile)
+│   ├── services/       # Domain services (MediaFileTracker, JobManager, PlaylistTracker)
+│   └── use_cases/      # Use cases (DownloadVideoUseCase, TranscribeVideoUseCase, etc.)
+├── infrastructure/     # Infrastructure layer
+│   └── storage/        # Storage adapters (LocalStorageAdapter, NASStorageAdapter)
 ├── core/               # Core functionality and base classes
+│   ├── service_factory.py  # Dependency injection container
+│   └── interfaces.py       # Service interfaces
 ├── modules/            # Feature modules (video, audio, etc.)
+│   └── video/
+│       └── services/   # Pure executor services (VideoDownloadService, etc.)
 ├── database/           # Database models, connections, and repositories
 ├── analytics/          # Analytics and reporting
 ├── utils/              # Utility functions and helpers
-├── tests/              # Comprehensive test suite
-└── bin/                # Executable scripts
+└── tests/              # Comprehensive test suite
+```
+
+### Architecture Layers
+
+- **CLI Layer**: User-facing commands, delegates to use cases
+- **Use Case Layer**: Orchestrates business logic, coordinates services and domain services
+- **Domain Layer**: Business entities and domain services for persistence logic
+- **Service Layer**: Pure executors (no repository access), focused on single responsibilities
+- **Infrastructure Layer**: Storage adapters, external system integrations
+- **Repository Layer**: Data access abstraction
 ```
 
 ## Installation

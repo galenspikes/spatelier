@@ -81,13 +81,31 @@ class IMetadataService(ABC):
         pass
 
     @abstractmethod
-    def enrich_media_file(self, media_file_id: int) -> bool:
-        """Enrich media file with additional metadata."""
+    def enrich_media_file(self, media_file, repository=None) -> Dict[str, Any]:
+        """
+        Enrich media file with additional metadata.
+        
+        Args:
+            media_file: MediaFile instance to enrich
+            repository: Optional MediaFileRepository (for use case layer to pass)
+        """
         pass
 
     @abstractmethod
-    def get_media_file_metadata(self, media_file_id: int) -> Optional[Dict[str, Any]]:
-        """Get metadata for a media file."""
+    def prepare_metadata_update(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """Prepare metadata update dictionary."""
+        pass
+
+    @abstractmethod
+    def convert_media_file_to_dict(self, media_file) -> Dict[str, Any]:
+        """Convert MediaFile instance to dictionary."""
+        pass
+
+    @abstractmethod
+    def prepare_search_params(
+        self, query: str, media_type: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Prepare search parameters for media file search."""
         pass
 
 
@@ -115,6 +133,16 @@ class ITranscriptionService(ABC):
         """Embed subtitles into video file."""
         pass
 
+    @abstractmethod
+    def has_transcription(self, media_file) -> bool:
+        """Check if a media file has transcription."""
+        pass
+
+    @abstractmethod
+    def has_whisper_subtitles(self, file_path: Path) -> bool:
+        """Check if video file has Whisper subtitles embedded."""
+        pass
+
 
 class IPlaylistService(ABC):
     """Interface for playlist service."""
@@ -124,6 +152,45 @@ class IPlaylistService(ABC):
         self, url: str, output_path: Optional[Union[str, Path]] = None, **kwargs
     ) -> Dict[str, Any]:
         """Download playlist without transcription."""
+        pass
+
+    @abstractmethod
+    def get_playlist_progress(
+        self, playlist_id: str, repositories=None, transcription_service=None
+    ) -> Dict[str, int]:
+        """
+        Get playlist download progress.
+        
+        Args:
+            playlist_id: Playlist ID
+            repositories: Optional repository container (for use case layer to pass)
+            transcription_service: Optional TranscriptionService (for use case layer to pass)
+        """
+        pass
+
+    @abstractmethod
+    def get_failed_videos(
+        self, playlist_id: str, repositories=None, transcription_service=None
+    ) -> List[Dict[str, Any]]:
+        """
+        Get failed videos from playlist.
+        
+        Args:
+            playlist_id: Playlist ID
+            repositories: Optional repository container (for use case layer to pass)
+            transcription_service: Optional TranscriptionService (for use case layer to pass)
+        """
+        pass
+
+    @abstractmethod
+    def download_playlist_with_transcription(
+        self,
+        url: str,
+        output_path: Optional[Union[str, Path]] = None,
+        continue_download: bool = True,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Download playlist with transcription support."""
         pass
 
 

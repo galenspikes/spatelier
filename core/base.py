@@ -97,11 +97,11 @@ class ProcessingResult(BaseModel):
 
     def has_errors(self) -> bool:
         """Check if result has errors."""
-        return len(self.errors) > 0
+        return bool(self.errors)
 
     def has_warnings(self) -> bool:
         """Check if result has warnings."""
-        return len(self.warnings) > 0
+        return bool(self.warnings)
 
     def is_successful(self) -> bool:
         """Check if result is successful (no errors)."""

@@ -46,13 +46,14 @@ def test_video_download_command(mock_service_factory_class, cli_runner):
     """Test video download command."""
     # Mock service container
     mock_services = Mock()
-    mock_downloader = Mock()
+    mock_use_case = Mock()
     mock_result = Mock()
     mock_result.is_successful.return_value = True
     mock_result.output_path = Path("/test/video.mp4")
     mock_result.message = "Download successful"
-    mock_downloader.download_video.return_value = mock_result
-    mock_services.video_download = mock_downloader
+    mock_result.metadata = {}
+    mock_use_case.execute.return_value = mock_result
+    mock_services.download_video_use_case = mock_use_case
     mock_service_factory_class.return_value.__enter__.return_value = mock_services
 
     result = cli_runner.invoke(
@@ -69,7 +70,7 @@ def test_video_download_command(mock_service_factory_class, cli_runner):
 
     assert result.exit_code == 0
     assert "Video downloaded successfully!" in result.output
-    mock_downloader.download_video.assert_called_once()
+    mock_use_case.execute.assert_called_once()
 
 
 @patch("core.service_factory.ServiceFactory")
@@ -77,12 +78,12 @@ def test_video_download_command_failure(mock_service_factory_class, cli_runner):
     """Test video download command failure."""
     # Mock service container with failure
     mock_services = Mock()
-    mock_downloader = Mock()
+    mock_use_case = Mock()
     mock_result = Mock()
     mock_result.is_successful.return_value = False
     mock_result.message = "Download failed"
-    mock_downloader.download_video.return_value = mock_result
-    mock_services.video_download = mock_downloader
+    mock_use_case.execute.return_value = mock_result
+    mock_services.download_video_use_case = mock_use_case
     mock_service_factory_class.return_value.__enter__.return_value = mock_services
 
     result = cli_runner.invoke(

@@ -6,7 +6,7 @@ This module provides database connection management for both SQLite and MongoDB.
 
 import asyncio
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any, Optional, Type, Union
 
 try:
     from motor.motor_asyncio import AsyncIOMotorClient
@@ -238,11 +238,13 @@ class DatabaseManager:
             # Note: Motor clients don't need explicit closing in async context
             self.logger.info("MongoDB async client closed")
 
-    def __enter__(self):
+    def __enter__(self) -> "DatabaseManager":
         """Context manager entry."""
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self, exc_type: Optional[Type[Exception]], exc_val: Optional[Exception], exc_tb: Optional[Any]
+    ) -> None:
         """Context manager exit."""
         self.close_connections()
         # Ensure session is properly closed

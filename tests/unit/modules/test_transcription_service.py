@@ -100,10 +100,12 @@ class TestTranscriptionService:
         transcription_service.repos.analytics.track_event = Mock()
 
         result = transcription_service.transcribe_video(
-            sample_video_file, language="en"
+            sample_video_file, media_file_id=123, language="en"
         )
 
-        assert result is True
+        assert result["success"] is True
+        assert "transcription_id" in result
+        assert "segments" in result
         mock_storage.store_transcription.assert_called_once()
 
     def test_transcribe_video_with_different_language(
@@ -124,7 +126,7 @@ class TestTranscriptionService:
             sample_video_file, language="es"
         )
 
-        assert result is True
+        assert result["success"] is True
 
     def test_transcribe_video_file_not_found(self, transcription_service):
         """Test transcription with non-existent file."""
@@ -133,7 +135,7 @@ class TestTranscriptionService:
         result = transcription_service.transcribe_video(
             non_existent_file, language="en"
         )
-        assert result is False
+        assert result["success"] is False
 
     def test_transcribe_video_whisper_error(
         self, transcription_service, sample_video_file
@@ -148,7 +150,7 @@ class TestTranscriptionService:
         result = transcription_service.transcribe_video(
             sample_video_file, language="en"
         )
-        assert result is False
+        assert result["success"] is False
 
     def test_transcribe_video_processing_time_tracking(
         self, transcription_service, sample_video_file
@@ -168,9 +170,8 @@ class TestTranscriptionService:
             sample_video_file, language="en"
         )
 
-        assert result is True
-        # Verify analytics tracking was called
-        assert transcription_service.repos.analytics.track_event.call_count >= 1
+        assert result["success"] is True
+        # Analytics tracking is now handled by use case, not service
 
     def test_transcribe_video_model_used_tracking(
         self, transcription_service, sample_video_file
@@ -187,10 +188,11 @@ class TestTranscriptionService:
         transcription_service.repos.analytics.track_event = Mock()
 
         result = transcription_service.transcribe_video(
-            sample_video_file, language="en"
+            sample_video_file, media_file_id=123, language="en"
         )
 
-        assert result is True
+        assert result["success"] is True
+        assert result["model_used"] == "whisper-large"
         # Verify storage was called with transcription data containing model_used
         call_args = mock_storage.store_transcription.call_args
         assert call_args is not None

@@ -42,10 +42,10 @@ class Worker:
         mode: WorkerMode = WorkerMode.THREAD,
         verbose: bool = False,
         max_retries: int = 10,
-        min_time_between_jobs: int = 60,
+        min_time_between_jobs: int = 60,  # 1 minute default throttling
         additional_sleep_time: int = 0,
-        poll_interval: int = 30,
-        stuck_job_timeout: int = 1800,  # 30 minutes
+        poll_interval: int = 30,  # 30 seconds between queue polls
+        stuck_job_timeout: int = 1800,  # 30 minutes (1800 seconds)
         services: Optional[Any] = None,
     ):
         """
@@ -528,11 +528,12 @@ class Worker:
 
                 if output_path.exists():
                     # Check if there are any video files in the output directory
-                    video_files = (
-                        list(output_path.rglob("*.mp4"))
-                        + list(output_path.rglob("*.mkv"))
-                        + list(output_path.rglob("*.avi"))
-                    )
+                    video_extensions = ["*.mp4", "*.mkv", "*.avi"]
+                    video_files = [
+                        file
+                        for ext in video_extensions
+                        for file in output_path.rglob(ext)
+                    ]
                     if video_files:
                         self.logger.info(
                             f"Job {job.id} has {len(video_files)} video files in output directory"
@@ -722,9 +723,11 @@ def create_download_processor(services) -> Callable[[Job], bool]:
             # Create output directory
             output_path.mkdir(parents=True, exist_ok=True)
 
-            # Download video using existing service
-            result = services.video_download.download_video(
-                video_url, output_path, quality=job_data.get("quality", "1080p")
+            # Download video using use case
+            result = services.download_video_use_case.execute(
+                url=video_url,
+                output_path=output_path,
+                quality=job_data.get("quality", "1080p"),
             )
 
             return result.is_successful()
@@ -752,9 +755,11 @@ def create_playlist_processor(services) -> Callable[[Job], bool]:
             # Create output directory
             output_path.mkdir(parents=True, exist_ok=True)
 
-            # Download playlist using existing service
-            result = services.playlist.download_playlist(
-                playlist_url, output_path, quality=job_data.get("quality", "1080p")
+            # Download playlist using use case
+            result = services.download_playlist_use_case.execute(
+                url=playlist_url,
+                output_path=output_path,
+                quality=job_data.get("quality", "1080p"),
             )
 
             return result.is_successful()

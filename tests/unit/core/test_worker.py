@@ -426,9 +426,11 @@ class TestWorkerHelperFunctions:
     def test_create_download_processor(self, tmp_path):
         """Test creating download processor."""
         mock_services = Mock()
+        mock_use_case = Mock()
         mock_result = Mock()
         mock_result.is_successful.return_value = True
-        mock_services.video_download.download_video.return_value = mock_result
+        mock_use_case.execute.return_value = mock_result
+        mock_services.download_video_use_case = mock_use_case
 
         processor = create_download_processor(mock_services)
 
@@ -442,14 +444,16 @@ class TestWorkerHelperFunctions:
         result = processor(job)
 
         assert result is True
-        mock_services.video_download.download_video.assert_called_once()
+        mock_use_case.execute.assert_called_once()
 
     def test_create_playlist_processor(self, tmp_path):
         """Test creating playlist processor."""
         mock_services = Mock()
+        mock_use_case = Mock()
         mock_result = Mock()
         mock_result.is_successful.return_value = True
-        mock_services.playlist.download_playlist.return_value = mock_result
+        mock_use_case.execute.return_value = mock_result
+        mock_services.download_playlist_use_case = mock_use_case
 
         processor = create_playlist_processor(mock_services)
 
@@ -463,4 +467,4 @@ class TestWorkerHelperFunctions:
         result = processor(job)
 
         assert result is True
-        mock_services.playlist.download_playlist.assert_called_once()
+        mock_use_case.execute.assert_called_once()

@@ -5,7 +5,7 @@ This module provides a single factory for creating and managing all services,
 eliminating duplication and ensuring consistent service lifecycle management.
 """
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional, Type
 
 from sqlalchemy.orm import Session
 
@@ -32,6 +32,44 @@ class ServiceFactory(IServiceFactory):
 
     Supports context manager usage and lazy-loaded service properties.
     Replaces ServiceContainer with a cleaner, more direct approach.
+
+    Dependency Graph:
+    - DatabaseService (foundation)
+      └── Repositories (initialized from DatabaseService)
+    
+    - VideoDownloadService
+      └── DatabaseService
+    
+    - MetadataService
+      └── DatabaseService
+      └── MetadataExtractor (internal)
+      └── MetadataManager (internal)
+    
+    - TranscriptionService
+      └── DatabaseService
+    
+    - PlaylistService
+      └── DatabaseService
+      └── MetadataExtractor (injected)
+      └── MetadataManager (injected)
+    
+    - AudioExtractionService (if created)
+      └── DatabaseService
+      └── AudioConverter (optional injection)
+      └── VideoDownloadService (optional injection)
+    
+    - Use Cases
+      └── DownloadVideoUseCase
+          ├── VideoDownloadService
+          ├── MetadataService
+          └── Repositories
+      └── DownloadPlaylistUseCase
+          ├── PlaylistService
+          ├── MetadataService
+          └── Repositories
+      └── TranscribeVideoUseCase
+          ├── TranscriptionService
+          └── Repositories
     """
 
     def __init__(self, config: Config, verbose: bool = False):
@@ -54,6 +92,11 @@ class ServiceFactory(IServiceFactory):
         self._transcription_service: Optional[ITranscriptionService] = None
         self._playlist_service: Optional[IPlaylistService] = None
         self._job_queue: Optional["JobQueue"] = None
+        
+        # Use cases will be created lazily
+        self._download_video_use_case = None
+        self._download_playlist_use_case = None
+        self._transcribe_video_use_case = None
 
     def create_database_service(
         self, config: Optional[Config] = None, verbose: Optional[bool] = None
@@ -148,7 +191,12 @@ class ServiceFactory(IServiceFactory):
         self, config: Optional[Config] = None, verbose: Optional[bool] = None
     ) -> IPlaylistService:
         """
-        Create playlist service.
+        Create playlist service with explicit dependency injection.
+
+        Dependency graph:
+        - PlaylistService
+          - MetadataExtractor (injected)
+          - MetadataManager (injected)
 
         Args:
             config: Optional config override (defaults to instance config)
@@ -160,10 +208,20 @@ class ServiceFactory(IServiceFactory):
             # Get database service for dependency injection
             db_service = self.create_database_service(use_config, use_verbose)
             # Import here to avoid circular imports
+            from database.metadata import MetadataExtractor, MetadataManager
             from modules.video.services import PlaylistService
 
+            # Create dependencies explicitly
+            metadata_extractor = MetadataExtractor(use_config, verbose=use_verbose)
+            metadata_manager = MetadataManager(use_config, verbose=use_verbose)
+
+            # Inject dependencies
             self._playlist_service = PlaylistService(
-                use_config, verbose=use_verbose, db_service=db_service
+                use_config,
+                verbose=use_verbose,
+                db_service=db_service,
+                metadata_extractor=metadata_extractor,
+                metadata_manager=metadata_manager,
             )
         return self._playlist_service
 
@@ -209,6 +267,62 @@ class ServiceFactory(IServiceFactory):
             self._job_queue = JobQueue(self.config, self.verbose)
         return self._job_queue
 
+    # Use case properties
+    @property
+    def download_video_use_case(self):
+        """Get download video use case (lazy-loaded)."""
+        if self._download_video_use_case is None:
+            from domain.use_cases import DownloadVideoUseCase
+            
+            download_service = self.video_download
+            metadata_service = self.metadata
+            repositories = self.repositories
+            logger = self.logger
+            
+            self._download_video_use_case = DownloadVideoUseCase(
+                download_service=download_service,
+                metadata_service=metadata_service,
+                repositories=repositories,
+                logger=logger,
+            )
+        return self._download_video_use_case
+
+    @property
+    def download_playlist_use_case(self):
+        """Get download playlist use case (lazy-loaded)."""
+        if self._download_playlist_use_case is None:
+            from domain.use_cases import DownloadPlaylistUseCase
+            
+            playlist_service = self.playlist
+            metadata_service = self.metadata
+            repositories = self.repositories
+            logger = self.logger
+            
+            self._download_playlist_use_case = DownloadPlaylistUseCase(
+                playlist_service=playlist_service,
+                metadata_service=metadata_service,
+                repositories=repositories,
+                logger=logger,
+            )
+        return self._download_playlist_use_case
+
+    @property
+    def transcribe_video_use_case(self):
+        """Get transcribe video use case (lazy-loaded)."""
+        if self._transcribe_video_use_case is None:
+            from domain.use_cases import TranscribeVideoUseCase
+            
+            transcription_service = self.transcription
+            repositories = self.repositories
+            logger = self.logger
+            
+            self._transcribe_video_use_case = TranscribeVideoUseCase(
+                transcription_service=transcription_service,
+                repositories=repositories,
+                logger=logger,
+            )
+        return self._transcribe_video_use_case
+
     def initialize_database(self) -> IRepositoryContainer:
         """
         Initialize database and return repositories.
@@ -231,6 +345,11 @@ class ServiceFactory(IServiceFactory):
         self._transcription_service = None
         self._playlist_service = None
         self._job_queue = None
+        
+        # Reset use cases
+        self._download_video_use_case = None
+        self._download_playlist_use_case = None
+        self._transcribe_video_use_case = None
 
     def get_database_service(self) -> Optional[IDatabaseService]:
         """Get existing database service."""
@@ -257,39 +376,14 @@ class ServiceFactory(IServiceFactory):
         self.close_all_services()
 
     # Context manager support
-    def __enter__(self):
+    def __enter__(self) -> "ServiceFactory":
         """Context manager entry."""
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self, exc_type: Optional[Type[Exception]], exc_val: Optional[Exception], exc_tb: Optional[Any]
+    ) -> None:
         """Context manager exit."""
         self.close_all_services()
 
 
-# Legacy global factory support (for backward compatibility during transition)
-# Note: This is deprecated and will be removed. Use ServiceFactory(config, verbose) directly.
-_service_factory: Optional[ServiceFactory] = None
-
-
-def get_service_factory() -> ServiceFactory:
-    """
-    Get global service factory instance.
-
-    DEPRECATED: Use ServiceFactory(config, verbose) directly instead.
-    This function exists only for backward compatibility during transition.
-    """
-    global _service_factory
-    if _service_factory is None:
-        # Create with default config - this is not ideal but maintains compatibility
-        _service_factory = ServiceFactory(Config(), verbose=False)
-    return _service_factory
-
-
-def reset_service_factory():
-    """
-    Reset global service factory (useful for testing).
-
-    DEPRECATED: Use ServiceFactory(config, verbose) directly instead.
-    """
-    global _service_factory
-    _service_factory = None

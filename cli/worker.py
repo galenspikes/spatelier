@@ -371,9 +371,10 @@ def list_jobs(
             return
 
         # Show summary for table format
+        summary_text = f"📊 Total Jobs: {len(jobs)} | {' | '.join(summary_parts)}"
         console.print(
             Panel(
-                f"📊 Total Jobs: {len(jobs)} | " + " | ".join(summary_parts),
+                summary_text,
                 title="Job Queue Summary",
                 border_style="green",
             )
@@ -547,13 +548,16 @@ def check_stuck(
 
                 output_path = Path(job.job_path)
                 if output_path.exists():
-                    video_files = (
-                        list(output_path.rglob("*.mp4"))
-                        + list(output_path.rglob("*.mkv"))
-                        + list(output_path.rglob("*.avi"))
-                    )
-                    has_output = len(video_files) > 0
-            except:
+                    video_extensions = ["*.mp4", "*.mkv", "*.avi"]
+                    video_files = [
+                        file
+                        for ext in video_extensions
+                        for file in output_path.rglob(ext)
+                    ]
+                    has_output = bool(video_files)
+            except Exception:
+                # Silently ignore errors when checking for output files
+                # This is a best-effort check and shouldn't fail the stuck job check
                 pass
 
             # Add output status to duration

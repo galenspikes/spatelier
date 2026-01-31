@@ -19,6 +19,19 @@ from rich.progress import (
     TextColumn,
 )
 
+# YouTube URL pattern for extracting video IDs
+# Matches: youtube.com/watch?v=, youtube.com/shorts/, youtube.com/v/, 
+# youtube.com/embed/, youtu.be/, and variations
+YOUTUBE_VIDEO_ID_PATTERN = (
+    r'(?:youtube\.com/(?:shorts/|watch\?v=|v/|embed/|[^/]+/.+/|.*[?&]v=)|youtu\.be/)([^"&?/\s]{11})'
+)
+
+# YouTube video ID pattern for extracting from filenames (e.g., "title [VIDEO_ID].mp4")
+YOUTUBE_VIDEO_ID_FILENAME_PATTERN = r'\[([a-zA-Z0-9_-]{11})\]'
+
+# Minimum file size to consider a file valid (1 byte)
+MIN_VALID_FILE_SIZE = 1
+
 
 def get_file_hash(file_path: Union[str, Path], algorithm: str = "sha256") -> str:
     """

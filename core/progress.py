@@ -7,7 +7,11 @@ downloads, and other long-running operations.
 
 import time
 from contextlib import contextmanager
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, ParamSpec, TypeVar
+
+# Type variables for decorators
+P = ParamSpec("P")
+R = TypeVar("R")
 
 from rich.console import Console
 from rich.progress import (
@@ -124,8 +128,8 @@ def progress_decorator(description: str, total_param: Optional[str] = None):
             # Function implementation
     """
 
-    def decorator(func: Callable) -> Callable:
-        def wrapper(*args, **kwargs):
+    def decorator(func: Callable[P, R]) -> Callable[P, R]:
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             # Get total from parameter if specified
             total = None
             if total_param and total_param in kwargs:

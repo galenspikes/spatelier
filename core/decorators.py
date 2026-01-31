@@ -8,10 +8,15 @@ error handling, timing, and validation.
 import functools
 import time
 from pathlib import Path
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Optional, ParamSpec, Tuple, Type, TypeVar, Union
 
 from core.base import ProcessingResult
 from core.error_handler import get_error_handler
+from core.logger import get_logger
+
+# Type variables for decorators
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
 def format_duration(seconds: float) -> str:
@@ -39,9 +44,9 @@ def handle_errors(context: str = "", return_result: bool = True, verbose: bool =
         verbose: Enable verbose logging
     """
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[P, R]) -> Callable[P, Union[R, ProcessingResult]]:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> Union[Any, ProcessingResult]:
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> Union[R, ProcessingResult]:
             try:
                 return func(*args, **kwargs)
             except Exception as e:
@@ -66,16 +71,17 @@ def time_operation(verbose: bool = False):
         verbose: Enable verbose logging
     """
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[P, R]) -> Callable[P, R]:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             start_time = time.time()
+            logger = get_logger(func.__module__)
             try:
                 result = func(*args, **kwargs)
                 duration = time.time() - start_time
 
                 if verbose:
-                    print(f"{func.__name__} completed in {format_duration(duration)}")
+                    logger.debug(f"{func.__name__} completed in {format_duration(duration)}")
 
                 # Add timing to result if it's a ProcessingResult
                 if isinstance(result, ProcessingResult):
@@ -85,7 +91,7 @@ def time_operation(verbose: bool = False):
             except Exception as e:
                 duration = time.time() - start_time
                 if verbose:
-                    print(
+                    logger.debug(
                         f"{func.__name__} failed after {format_duration(duration)}: {e}"
                     )
                 raise
@@ -96,8 +102,8 @@ def time_operation(verbose: bool = False):
 
 
 def validate_input(
-    input_validator: Optional[Callable] = None,
-    output_validator: Optional[Callable] = None,
+    input_validator: Optional[Callable[..., Any]] = None,
+    output_validator: Optional[Callable[..., Any]] = None,
 ):
     """
     Decorator for input/output validation.
@@ -107,9 +113,9 @@ def validate_input(
         output_validator: Function to validate outputs
     """
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[P, R]) -> Callable[P, R]:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             # Validate inputs
             if input_validator:
                 try:
@@ -137,7 +143,7 @@ def retry_on_failure(
     max_retries: int = 3,
     delay: float = 1.0,
     backoff_factor: float = 2.0,
-    exceptions: tuple = (Exception,),
+    exceptions: Tuple[Type[Exception], ...] = (Exception,),
 ):
     """
     Decorator for retrying operations on failure.
@@ -149,9 +155,9 @@ def retry_on_failure(
         exceptions: Tuple of exceptions to retry on
     """
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[P, R]) -> Callable[P, R]:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             current_delay = delay
             last_exception = None
 
@@ -185,26 +191,27 @@ def log_operation(
         include_result: Whether to include result in log
     """
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[P, R]) -> Callable[P, R]:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             from core.logger import get_logger
 
             logger = get_logger(func.__module__)
+
+            # Map log levels to logger methods
+            log_methods = {
+                "DEBUG": logger.debug,
+                "INFO": logger.info,
+                "WARNING": logger.warning,
+                "ERROR": logger.error,
+            }
+            log_method = log_methods.get(level.upper(), logger.info)
 
             # Log function start
             log_msg = f"Starting {func.__name__}"
             if include_args:
                 log_msg += f" with args={args}, kwargs={kwargs}"
-
-            if level.upper() == "DEBUG":
-                logger.debug(log_msg)
-            elif level.upper() == "INFO":
-                logger.info(log_msg)
-            elif level.upper() == "WARNING":
-                logger.warning(log_msg)
-            elif level.upper() == "ERROR":
-                logger.error(log_msg)
+            log_method(log_msg)
 
             try:
                 result = func(*args, **kwargs)
@@ -213,15 +220,7 @@ def log_operation(
                 log_msg = f"Completed {func.__name__}"
                 if include_result:
                     log_msg += f" with result={result}"
-
-                if level.upper() == "DEBUG":
-                    logger.debug(log_msg)
-                elif level.upper() == "INFO":
-                    logger.info(log_msg)
-                elif level.upper() == "WARNING":
-                    logger.warning(log_msg)
-                elif level.upper() == "ERROR":
-                    logger.error(log_msg)
+                log_method(log_msg)
 
                 return result
             except Exception as e:
@@ -241,9 +240,9 @@ def ensure_path_exists(path_arg: str = "path"):
         path_arg: Name of the path argument to validate
     """
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[P, R]) -> Callable[P, R]:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             # Get the path argument
             if path_arg in kwargs:
                 path = kwargs[path_arg]
