@@ -340,7 +340,7 @@ class VideoDownloadService(BaseService, IVideoDownloadService):
                     # Try to find file with video ID in name
                     for ext in self.config.video_extensions:
                         pattern = f"*{video_id}*{ext}"
-                        matches = output_dir.glob(pattern)
+                        matches = list(output_dir.glob(pattern))
                         if matches:
                             # Return the most recently modified matching file
                             valid_files = [
