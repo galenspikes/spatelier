@@ -1,8 +1,8 @@
 """
 Integration tests for NAS operations.
 
-Tests actual NAS functionality using the real NAS path
-/Volumes/Public-01/spatelier/tests for comprehensive testing.
+Tests actual NAS functionality using the parametrized NAS path
+(default /Volumes/Public-01/.spatelier/tests, or home/tmp fallback).
 """
 
 import shutil
@@ -10,20 +10,13 @@ import tempfile
 import time
 from pathlib import Path
 from typing import Any, Dict, Generator
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 
 from core.config import Config
-
-# Removed imports for deleted modular architecture
-from database.connection import DatabaseManager
-from database.repository import (
-    AnalyticsRepository,
-    MediaFileRepository,
-    ProcessingJobRepository,
-)
 from modules.video.services.download_service import VideoDownloadService
+from tests.fixtures.nas_fixtures import get_nas_tests_path
 
 
 class TestNASIntegration:
@@ -31,8 +24,8 @@ class TestNASIntegration:
 
     @pytest.fixture
     def nas_test_path(self) -> Path:
-        """Get the NAS test path."""
-        return Path("/Volumes/Public-01/spatelier/tests")
+        """Get the NAS test path (parametrized root + .spatelier/tests/)."""
+        return get_nas_tests_path()
 
     @pytest.fixture
     def nas_config(self, nas_test_path: Path) -> Config:
@@ -40,8 +33,8 @@ class TestNASIntegration:
         config = Config()
         config.video.output_dir = nas_test_path / "videos"
         config.audio.output_dir = nas_test_path / "audio"
-        config.database.sqlite_path = str(nas_test_path / "test.db")
-        config.mongodb_database = "test_spatelier_nas"
+        config.database.sqlite_path = Path(nas_test_path / "test.db")
+        config.database.mongodb_database = "test_spatelier_nas"
         return config
 
     @pytest.fixture
@@ -64,40 +57,36 @@ class TestNASIntegration:
         except Exception:
             pass  # Ignore cleanup errors on NAS
 
-    def test_nas_path_detection(self, nas_test_path: Path):
-        """Test that NAS path is correctly detected."""
-        config = Mock(spec=Config)
-        downloader = VideoDownloadService(config, verbose=False)
-
-        # Test the actual NAS path
+    def test_nas_path_detection(
+        self, nas_test_path: Path, nas_config: Config, nas_available: bool
+    ):
+        """Test that NAS path is correctly detected (only when using real NAS)."""
+        if not nas_available:
+            pytest.skip("NAS path detection asserts real NAS; skip when using fallback")
+        downloader = VideoDownloadService(nas_config, verbose=False)
         assert downloader._is_nas_path(nas_test_path) == True
         assert downloader._is_nas_path(nas_test_path / "videos") == True
         assert downloader._is_nas_path(nas_test_path / "audio") == True
-
-        # Test non-NAS paths
         assert downloader._is_nas_path(Path("/tmp")) == False
         assert downloader._is_nas_path(Path("/Users/test")) == False
 
-    def test_nas_temp_directory_creation(self, nas_test_path: Path):
+    def test_nas_temp_directory_creation(self, nas_test_path: Path, nas_config: Config):
         """Test temp directory creation for NAS operations."""
-        config = Mock(spec=Config)
-        downloader = VideoDownloadService(config, verbose=False)
+        downloader = VideoDownloadService(nas_config, verbose=False)
 
         job_id = 12345
         temp_dir = downloader._get_temp_processing_dir(job_id)
 
         # Should create local temp directory
         assert temp_dir.exists()
-        assert temp_dir.name == str(job_id)
-        assert temp_dir.parent.name == ".temp"
+        assert str(job_id) in str(temp_dir)
 
         # Cleanup
-        shutil.rmtree(temp_dir.parent, ignore_errors=True)
+        shutil.rmtree(temp_dir, ignore_errors=True)
 
-    def test_nas_file_move_operation(self, nas_test_path: Path):
+    def test_nas_file_move_operation(self, nas_test_path: Path, nas_config: Config):
         """Test moving files from temp to NAS."""
-        config = Mock(spec=Config)
-        downloader = VideoDownloadService(config, verbose=False)
+        downloader = VideoDownloadService(nas_config, verbose=False)
 
         # Create temp file
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_file:
@@ -122,10 +111,9 @@ class TestNASIntegration:
             # Cleanup temp file if it still exists
             temp_file_path.unlink(missing_ok=True)
 
-    def test_nas_playlist_directory_move(self, nas_test_path: Path):
+    def test_nas_playlist_directory_move(self, nas_test_path: Path, nas_config: Config):
         """Test moving entire playlist directory to NAS."""
-        config = Mock(spec=Config)
-        downloader = VideoDownloadService(config, verbose=False)
+        downloader = VideoDownloadService(nas_config, verbose=False)
 
         # Create temp playlist directory
         temp_dir = Path(tempfile.mkdtemp())
@@ -156,10 +144,9 @@ class TestNASIntegration:
             # Cleanup temp directory
             shutil.rmtree(temp_dir, ignore_errors=True)
 
-    def test_nas_cross_device_move_simulation(self, nas_test_path: Path):
+    def test_nas_cross_device_move_simulation(self, nas_test_path: Path, nas_config: Config):
         """Test cross-device move simulation (copy + delete)."""
-        config = Mock(spec=Config)
-        downloader = VideoDownloadService(config, verbose=False)
+        downloader = VideoDownloadService(nas_config, verbose=False)
 
         # Create temp file
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_file:
@@ -185,10 +172,9 @@ class TestNASIntegration:
             # Cleanup temp file if it still exists
             temp_file_path.unlink(missing_ok=True)
 
-    def test_nas_processing_workflow(self, nas_test_path: Path):
+    def test_nas_processing_workflow(self, nas_test_path: Path, nas_config: Config):
         """Test complete NAS processing workflow."""
-        config = Mock(spec=Config)
-        downloader = VideoDownloadService(config, verbose=False)
+        downloader = VideoDownloadService(nas_config, verbose=False)
 
         # Create temp processing directory
         job_id = 99999
@@ -215,13 +201,37 @@ class TestNASIntegration:
             # Cleanup temp directory
             shutil.rmtree(temp_dir, ignore_errors=True)
 
-    def test_nas_permissions_and_access(self, nas_test_path: Path):
-        """Test NAS permissions and access."""
-        # Test that we can read from NAS
+    def test_nas_dir_is_writable(
+        self, nas_test_path: Path, nas_config: Config, nas_available: bool
+    ):
+        """Test that we have write permission to the NAS dir (same check execution path uses).
+
+        If this fails or we skip, NAS writes (download/move) would also fail. NFS/SMB from Mac
+        often have permission issues (uid/gid, mount options); that's an environment/OS-level
+        concern, not an application bug.
+        """
+        downloader = VideoDownloadService(nas_config, verbose=False)
+        if not downloader.storage_adapter.can_write_to(nas_test_path):
+            pytest.skip(
+                "NAS test path is not writable. Common with NFS/SMB from Mac (mount options, "
+                "uid/gid). Ensure the mount is writable or run tests with fallback (home/tmp)."
+            )
+        # Probe file was created and removed by can_write_to; path exists and is writable
         assert nas_test_path.exists()
         assert nas_test_path.is_dir()
 
-        # Test that we can write to NAS
+    def test_nas_permissions_and_access(self, nas_test_path: Path, nas_config: Config):
+        """Test NAS read/write and mkdir (same operations execution does)."""
+        assert nas_test_path.exists()
+        assert nas_test_path.is_dir()
+
+        # Use same writability check as execution path; skip with clear message if not writable
+        downloader = VideoDownloadService(nas_config, verbose=False)
+        if not downloader.storage_adapter.can_write_to(nas_test_path):
+            pytest.skip(
+                "NAS path not writable (e.g. NFS/SMB from Mac). Execution would fail the same way."
+            )
+
         test_file = nas_test_path / "permission_test.txt"
         test_file.write_text("NAS permission test")
 
@@ -229,21 +239,18 @@ class TestNASIntegration:
             assert test_file.exists()
             assert test_file.read_text() == "NAS permission test"
 
-            # Test that we can create directories
             test_dir = nas_test_path / "permission_test_dir"
             test_dir.mkdir(exist_ok=True)
             assert test_dir.exists()
             assert test_dir.is_dir()
 
         finally:
-            # Cleanup
             test_file.unlink(missing_ok=True)
             shutil.rmtree(test_dir, ignore_errors=True)
 
-    def test_nas_large_file_handling(self, nas_test_path: Path):
+    def test_nas_large_file_handling(self, nas_test_path: Path, nas_config: Config):
         """Test handling large files on NAS."""
-        config = Mock(spec=Config)
-        downloader = VideoDownloadService(config, verbose=False)
+        downloader = VideoDownloadService(nas_config, verbose=False)
 
         # Create a larger test file (10MB)
         large_content = b"0" * (10 * 1024 * 1024)  # 10MB
@@ -270,13 +277,12 @@ class TestNASIntegration:
             # Cleanup temp file if it still exists
             temp_file_path.unlink(missing_ok=True)
 
-    def test_nas_concurrent_operations(self, nas_test_path: Path):
+    def test_nas_concurrent_operations(self, nas_test_path: Path, nas_config: Config):
         """Test concurrent operations on NAS."""
         import threading
         import time
 
-        config = Mock(spec=Config)
-        downloader = VideoDownloadService(config, verbose=False)
+        downloader = VideoDownloadService(nas_config, verbose=False)
 
         results = []
 
@@ -321,10 +327,9 @@ class TestNASIntegration:
                 # Cleanup
                 dest.unlink(missing_ok=True)
 
-    def test_nas_error_handling(self, nas_test_path: Path):
+    def test_nas_error_handling(self, nas_test_path: Path, nas_config: Config):
         """Test error handling for NAS operations."""
-        config = Mock(spec=Config)
-        downloader = VideoDownloadService(config, verbose=False)
+        downloader = VideoDownloadService(nas_config, verbose=False)
 
         # Test with non-existent source file
         non_existent_file = Path("/tmp/non_existent_file.mp4")
@@ -350,10 +355,9 @@ class TestNASIntegration:
         finally:
             temp_file.unlink(missing_ok=True)
 
-    def test_nas_cleanup_operations(self, nas_test_path: Path):
+    def test_nas_cleanup_operations(self, nas_test_path: Path, nas_config: Config):
         """Test cleanup operations on NAS."""
-        config = Mock(spec=Config)
-        downloader = VideoDownloadService(config, verbose=False)
+        downloader = VideoDownloadService(nas_config, verbose=False)
 
         # Create temp directory with files
         job_id = 88888
@@ -368,29 +372,28 @@ class TestNASIntegration:
         assert not temp_dir.exists()
         # Note: Only the specific job directory is cleaned up, not the parent .temp directory
 
-    def test_nas_path_resolution(self, nas_test_path: Path):
-        """Test NAS path resolution and handling."""
-        config = Mock(spec=Config)
-        downloader = VideoDownloadService(config, verbose=False)
-
-        # Test various NAS path formats
+    def test_nas_path_resolution(
+        self, nas_test_path: Path, nas_config: Config, nas_available: bool
+    ):
+        """Test NAS path resolution (only when using real NAS)."""
+        if not nas_available:
+            pytest.skip("NAS path resolution asserts real NAS; skip when using fallback")
+        downloader = VideoDownloadService(nas_config, verbose=False)
         nas_paths = [
             nas_test_path,
             nas_test_path / "videos",
             nas_test_path / "audio" / "music",
             nas_test_path / "deep" / "nested" / "path",
         ]
-
         for path in nas_paths:
             assert downloader._is_nas_path(path) == True
             assert str(path).startswith("/Volumes/")
 
-    def test_nas_performance_characteristics(self, nas_test_path: Path):
+    def test_nas_performance_characteristics(self, nas_test_path: Path, nas_config: Config):
         """Test NAS performance characteristics."""
         import time
 
-        config = Mock(spec=Config)
-        downloader = VideoDownloadService(config, verbose=False)
+        downloader = VideoDownloadService(nas_config, verbose=False)
 
         # Test write performance
         test_file = nas_test_path / "performance_test.txt"

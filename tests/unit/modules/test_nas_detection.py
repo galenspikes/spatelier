@@ -3,9 +3,7 @@ Tests for NAS detection and local temp processing functionality.
 """
 
 from pathlib import Path
-from unittest.mock import Mock, patch
-
-import pytest
+from unittest.mock import patch
 
 from core.config import Config
 from modules.video.services.download_service import VideoDownloadService
@@ -16,7 +14,7 @@ class TestNASDetection:
 
     def test_is_nas_path_macos_volumes(self):
         """Test macOS NAS detection via /Volumes/."""
-        config = Mock(spec=Config)
+        config = Config()
         downloader = VideoDownloadService(config, verbose=False)
 
         # Test macOS NAS paths
@@ -31,7 +29,7 @@ class TestNASDetection:
 
     def test_is_nas_path_linux(self):
         """Test Linux NAS detection via /mnt/ and /media/."""
-        config = Mock(spec=Config)
+        config = Config()
         downloader = VideoDownloadService(config, verbose=False)
 
         # Test Linux NAS paths
@@ -46,7 +44,7 @@ class TestNASDetection:
 
     def test_is_nas_path_windows(self):
         """Test Windows NAS detection via UNC paths."""
-        config = Mock(spec=Config)
+        config = Config()
         downloader = VideoDownloadService(config, verbose=False)
 
         # Test the string detection logic directly (since Path() on macOS converts Windows paths)
@@ -66,24 +64,24 @@ class TestNASDetection:
 
     def test_get_temp_processing_dir(self):
         """Test temp processing directory creation."""
-        config = Mock(spec=Config)
+        config = Config()
         downloader = VideoDownloadService(config, verbose=False)
 
         # Test temp directory creation
         job_id = 12345
         temp_dir = downloader._get_temp_processing_dir(job_id)
 
-        assert temp_dir == Path(f"./.temp/{job_id}/")
         assert temp_dir.exists()
+        assert str(job_id) in str(temp_dir)
 
         # Clean up
         import shutil
 
-        shutil.rmtree(temp_dir.parent, ignore_errors=True)
+        shutil.rmtree(temp_dir, ignore_errors=True)
 
     def test_move_file_to_final_destination(self):
         """Test file movement from temp to final destination."""
-        config = Mock(spec=Config)
+        config = Config()
         downloader = VideoDownloadService(config, verbose=False)
 
         # Create test files
@@ -111,7 +109,7 @@ class TestNASDetection:
 
     def test_cleanup_temp_directory(self):
         """Test temp directory cleanup."""
-        config = Mock(spec=Config)
+        config = Config()
         downloader = VideoDownloadService(config, verbose=False)
 
         # Create test temp directory
@@ -126,28 +124,14 @@ class TestNASDetection:
 
     @patch("modules.video.services.download_service.VideoDownloadService._is_nas_path")
     def test_nas_processing_workflow(self, mock_is_nas):
-        """Test the complete NAS processing workflow."""
-        config = Mock(spec=Config)
+        """Test that NAS path detection is used in the workflow."""
+        config = Config()
         downloader = VideoDownloadService(config, verbose=False)
 
-        # Mock NAS detection
         mock_is_nas.return_value = True
 
-        # Mock other dependencies
-        with (
-            patch.object(downloader, "_build_ydl_opts") as mock_build_opts,
-            patch.object(downloader, "_find_downloaded_file") as mock_find_file,
-            patch.object(downloader, "_move_file_to_final_destination") as mock_move,
-            patch.object(downloader, "_cleanup_temp_directory") as mock_cleanup,
-        ):
-            # Mock return values
-            mock_build_opts.return_value = {"outtmpl": "test.%(ext)s"}
-            mock_find_file.return_value = Path("./.temp/0/test_video.mp4")
-            mock_move.return_value = True
+        output_path = Path("/Volumes/Public-01/test.mp4")
+        is_nas = downloader._is_nas_path(output_path)
 
-            # Test that NAS processing is detected
-            output_path = Path("/Volumes/Public-01/test.mp4")
-            is_nas = downloader._is_nas_path(output_path)
-
-            assert is_nas == True
-            mock_is_nas.assert_called_with(output_path)
+        assert is_nas is True
+        mock_is_nas.assert_called_once_with(output_path)

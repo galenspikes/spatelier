@@ -61,13 +61,12 @@ class MediaFileTracker:
             metadata = metadata or {}
 
             # Check if file already exists
-            if check_existing:
-                existing = self.repos.media.get_by_file_path(str(file_path))
-                if existing:
-                    if self.logger:
-                        self.logger.debug(f"Media file already tracked: {file_path}")
-                    return existing.id
-            
+            existing = self.repos.media.get_by_file_path(str(file_path))
+            if existing:
+                if self.logger:
+                    self.logger.debug(f"Media file already tracked: {file_path}")
+                return existing.id
+
             # If metadata has file_path that differs, check for existing at that path too
             if metadata and metadata.get("original_path"):
                 original_path = Path(metadata["original_path"])
@@ -80,20 +79,22 @@ class MediaFileTracker:
                         return existing.id
 
             # Create domain model
+            media_type_str = "video" if "video" in file_type else "audio"
             domain_media_file = MediaFile(
                 file_path=file_path,
                 file_name=file_path.name,
                 file_size=file_path.stat().st_size,
-                media_type="video" if "video" in file_type else "audio",
+                media_type=media_type_str,
                 file_hash=file_hash,
             )
 
-            # Persist to database
+            # Persist to database (mime_type is NOT NULL in schema; get_file_type returns MIME string)
             db_media_file = self.repos.media.create(
                 file_path=str(domain_media_file.file_path),
                 file_name=domain_media_file.file_name,
                 file_size=domain_media_file.file_size,
                 media_type=MediaType.VIDEO if domain_media_file.is_video() else MediaType.AUDIO,
+                mime_type=file_type,
                 file_hash=domain_media_file.file_hash,
                 source_url=url,
                 title=metadata.get("title"),

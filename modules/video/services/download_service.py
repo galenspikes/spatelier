@@ -120,6 +120,18 @@ class VideoDownloadService(BaseService, IVideoDownloadService):
             # Check if output is on remote storage and set up temp processing if needed
             is_remote = self.storage_adapter.is_remote(output_dir)
 
+            if is_remote and not self.storage_adapter.can_write_to(output_dir):
+                self.logger.warning(
+                    f"Remote path not writable: {output_dir}. "
+                    "Check NAS mount and permissions (NFS/SMB from Mac can have permission issues)."
+                )
+                return ProcessingResult(
+                    success=False,
+                    message="Remote storage path is not writable",
+                    errors=["Cannot write to remote destination; check mount and permissions"],
+                    metadata={"output_path": str(output_dir), "source_url": url},
+                )
+
             temp_dir = None
             processing_path = output_dir
 
@@ -504,4 +516,39 @@ class VideoDownloadService(BaseService, IVideoDownloadService):
             result["reason"] = f"File {file_path} exists without subtitles"
 
         return result
+
+    # --- NAS delegation (for tests and backward compatibility) ---
+
+    def _is_nas_path(self, path: Path) -> bool:
+        """Check if path is on NAS/remote storage. Delegates to storage adapter."""
+        return self.storage_adapter.is_remote(path)
+
+    def _get_temp_processing_dir(self, job_id: int) -> Path:
+        """Get temp processing directory for a job. Delegates to storage adapter."""
+        return self.storage_adapter.get_temp_processing_dir(job_id)
+
+    def _move_file_to_final_destination(
+        self, source_file: Path, dest_file: Path
+    ) -> bool:
+        """Move file from source to final destination. Delegates to storage adapter."""
+        return self.storage_adapter.move_file(source_file, dest_file)
+
+    def _cleanup_temp_directory(self, temp_dir: Path) -> bool:
+        """Clean up temp directory. Delegates to storage adapter."""
+        return self.storage_adapter.cleanup_temp_dir(temp_dir)
+
+    def _move_playlist_to_final_destination(
+        self, playlist_dir: Path, dest_dir: Path
+    ) -> bool:
+        """Move entire playlist directory to final destination (e.g. NAS)."""
+        try:
+            import shutil
+
+            dest_dir.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(playlist_dir), str(dest_dir))
+            return True
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Failed to move playlist directory: {e}")
+            return False
 

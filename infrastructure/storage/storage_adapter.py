@@ -10,6 +10,10 @@ from pathlib import Path
 from typing import Optional
 
 
+# Probe filename used to check write permission without leaving debris
+_WRITE_PROBE_NAME = ".spatelier_write_probe"
+
+
 class StorageAdapter(ABC):
     """
     Abstract storage adapter interface.
@@ -17,6 +21,23 @@ class StorageAdapter(ABC):
     Provides a unified interface for storage operations regardless of
     the underlying storage backend (local, NAS, cloud, etc.).
     """
+
+    def can_write_to(self, path: Path) -> bool:
+        """
+        Check if path is writable (e.g. before moving files to NAS).
+
+        Creates path if missing, writes and removes a probe file. Use this
+        to fail fast before starting a download when destination is remote.
+        """
+        try:
+            path = path.resolve()
+            path.mkdir(parents=True, exist_ok=True)
+            probe = path / _WRITE_PROBE_NAME
+            probe.write_text("")
+            probe.unlink(missing_ok=True)
+            return True
+        except (OSError, PermissionError):
+            return False
 
     @abstractmethod
     def is_remote(self, path: Path) -> bool:

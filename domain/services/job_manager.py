@@ -108,10 +108,12 @@ class JobManager:
             True if successful, False otherwise
         """
         try:
+            # SQLite expects str for path columns, not Path
+            path_str = str(output_path) if output_path is not None else None
             self.repos.jobs.update(
                 job_id,
                 media_file_id=media_file_id,
-                output_path=output_path,
+                output_path=path_str,
             )
             return True
         except Exception as e:

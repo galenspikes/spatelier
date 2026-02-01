@@ -31,9 +31,13 @@ class TestNASPerformance:
 
         for scenario_name, scenario in nas_file_scenarios.items():
             test_file = nas_test_directory / f"perf_test_{scenario_name}.txt"
+            content = scenario["content"]
 
             start_time = time.time()
-            test_file.write_text(scenario["content"])
+            if isinstance(content, bytes):
+                test_file.write_bytes(content)
+            else:
+                test_file.write_text(content)
             write_time = time.time() - start_time
 
             results[scenario_name] = {
@@ -70,13 +74,17 @@ class TestNASPerformance:
 
         for scenario_name, scenario in nas_file_scenarios.items():
             test_file = nas_test_directory / f"perf_test_{scenario_name}.txt"
+            content = scenario["content"]
 
             # Write file first
-            test_file.write_text(scenario["content"])
+            if isinstance(content, bytes):
+                test_file.write_bytes(content)
+            else:
+                test_file.write_text(content)
 
             # Test read performance
             start_time = time.time()
-            content = test_file.read_text()
+            read_content = test_file.read_bytes() if isinstance(content, bytes) else test_file.read_text()
             read_time = time.time() - start_time
 
             results[scenario_name] = {
@@ -90,7 +98,7 @@ class TestNASPerformance:
             }
 
             # Verify content
-            assert content == scenario["content"]
+            assert read_content == content
 
             # Cleanup
             test_file.unlink()

@@ -114,6 +114,18 @@ class PlaylistService(BaseService, IPlaylistService):
             # Check if output is on remote storage and set up temp processing if needed
             is_remote = self.storage_adapter.is_remote(playlist_dir)
 
+            if is_remote and not self.storage_adapter.can_write_to(playlist_dir):
+                self.logger.warning(
+                    f"Remote path not writable: {playlist_dir}. "
+                    "Check NAS mount and permissions (NFS/SMB from Mac can have permission issues)."
+                )
+                return ProcessingResult(
+                    success=False,
+                    message="Remote storage path is not writable",
+                    errors=["Cannot write to remote destination; check mount and permissions"],
+                    metadata={"output_path": str(playlist_dir), "url": url},
+                )
+
             # Get job_id if provided (from use case layer) - for temp directory creation
             job_id = kwargs.get("job_id")
 

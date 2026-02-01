@@ -124,7 +124,7 @@ class DownloadPlaylistUseCase:
                 if job_id:
                     self.job_manager.update_job(
                         job_id,
-                        output_path=result.output_path,
+                        output_path=str(result.output_path) if result.output_path else None,
                     )
                     self.job_manager.update_job_status(job_id, "completed")
             else:

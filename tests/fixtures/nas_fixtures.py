@@ -3,6 +3,10 @@ NAS-specific test fixtures.
 
 Provides fixtures for testing NAS operations including
 path detection, file operations, and performance testing.
+
+NAS path is parametrized: default root is /Volumes/Public-01; if that does not
+exist, falls back to home dir, then tmp. Test subdir is .spatelier/tests/ and
+is created if missing.
 """
 
 import shutil
@@ -17,39 +21,74 @@ import pytest
 from core.config import Config
 from core.service_factory import ServiceFactory
 
+# Default NAS root; if it doesn't exist, we fall back to home or tmp
+NAS_PATH_ROOT_DEFAULT = Path("/Volumes/Public-01")
+
+
+def _candidate_roots() -> list[Path]:
+    """Ordered list of candidate roots: default NAS, then home, then tmp."""
+    return [
+        NAS_PATH_ROOT_DEFAULT,
+        Path.home(),
+        Path(tempfile.gettempdir()),
+    ]
+
+
+def get_nas_path_root() -> Path:
+    """Return NAS/test root: default /Volumes/Public-01 if it exists, else home, else tmp."""
+    for root in _candidate_roots():
+        if root.exists():
+            return root
+    return Path(tempfile.gettempdir())
+
+
+def get_nas_tests_path() -> Path:
+    """Return {nas_path_root}/.spatelier/tests/, creating it if missing. Uses first root where we can create the dir."""
+    subdir = Path(".spatelier") / "tests"
+    for root in _candidate_roots():
+        if not root.exists():
+            continue
+        path = root / subdir
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+            return path
+        except (OSError, PermissionError):
+            continue
+    # Last resort: tmp is always writable
+    fallback = Path(tempfile.gettempdir()) / subdir
+    fallback.mkdir(parents=True, exist_ok=True)
+    return fallback
+
 
 @pytest.fixture
 def nas_test_path() -> Path:
-    """Get the actual NAS test path."""
-    return Path("/Volumes/Public-01/spatelier/tests")
+    """Get the NAS test path (parametrized root + .spatelier/tests/)."""
+    return get_nas_tests_path()
 
 
 @pytest.fixture
 def nas_available() -> bool:
-    """Check if NAS is available for testing."""
-    nas_path = Path("/Volumes/Public-01/spatelier/tests")
-    return nas_path.exists() and nas_path.is_dir()
+    """True when the test path is under the default NAS root (we are actually using NAS)."""
+    try:
+        return get_nas_tests_path().resolve().is_relative_to(
+            NAS_PATH_ROOT_DEFAULT.resolve()
+        )
+    except ValueError:
+        return False
 
 
 @pytest.fixture
-def nas_test_directory(
-    nas_test_path: Path, nas_available: bool
-) -> Generator[Path, None, None]:
-    """Create a temporary test directory on NAS."""
-    if not nas_available:
-        pytest.skip("NAS not available for testing")
-
-    # Create unique test directory
+def nas_test_directory(nas_test_path: Path) -> Generator[Path, None, None]:
+    """Create a temporary test directory under nas_test_path (NAS or fallback)."""
     test_dir = nas_test_path / f"test_{int(time.time())}_{id(nas_test_path)}"
     test_dir.mkdir(parents=True, exist_ok=True)
 
     yield test_dir
 
-    # Cleanup
     try:
         shutil.rmtree(test_dir, ignore_errors=True)
     except Exception:
-        pass  # Ignore cleanup errors
+        pass
 
 
 @pytest.fixture
@@ -96,14 +135,15 @@ def nas_file_scenarios():
 
 
 @pytest.fixture
-def nas_path_scenarios():
-    """Various NAS path scenarios for testing."""
+def nas_path_scenarios(nas_test_path: Path):
+    """Various NAS path scenarios for testing (based on parametrized nas_test_path)."""
+    base = str(nas_test_path)
     return {
-        "root_path": "/Volumes/Public-01/spatelier/tests",
-        "nested_path": "/Volumes/Public-01/spatelier/tests/videos/2024",
-        "deep_path": "/Volumes/Public-01/spatelier/tests/audio/music/artist/album",
-        "special_chars": "/Volumes/Public-01/spatelier/tests/special chars & symbols",
-        "unicode_path": "/Volumes/Public-01/spatelier/tests/测试/视频",
+        "root_path": base,
+        "nested_path": f"{base}/videos/2024",
+        "deep_path": f"{base}/audio/music/artist/album",
+        "special_chars": f"{base}/special chars & symbols",
+        "unicode_path": f"{base}/测试/视频",
     }
 
 

@@ -199,10 +199,10 @@ def pytest_collection_modifyitems(config, items):
 
 def pytest_runtest_setup(item):
     """Set up test run."""
-    # Skip NAS tests if NAS is not available
+    # Skip NAS tests only when marked and NAS root is not available
     if item.get_closest_marker("nas"):
-        nas_path = Path("/Volumes/Public-01/spatelier/tests")
-        if not nas_path.exists():
+        from tests.fixtures.nas_fixtures import NAS_PATH_ROOT_DEFAULT
+        if not NAS_PATH_ROOT_DEFAULT.exists():
             pytest.skip("NAS not available for testing")
 
 
