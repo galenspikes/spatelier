@@ -43,7 +43,7 @@ def get_nas_path_root() -> Path:
 
 
 def get_nas_tests_path() -> Path:
-    """Return {nas_path_root}/.spatelier/tests/, creating it if missing. Uses first root where we can create the dir."""
+    """Return {nas_path_root}/.spatelier/tests/, creating it if missing. Uses first root where we can create the dir and a subdir (probe)."""
     subdir = Path(".spatelier") / "tests"
     for root in _candidate_roots():
         if not root.exists():
@@ -51,6 +51,10 @@ def get_nas_tests_path() -> Path:
         path = root / subdir
         try:
             path.mkdir(parents=True, exist_ok=True)
+            # Verify we can create a subdir (e.g. NAS may exist but be read-only for new dirs)
+            probe = path / ".probe_writable"
+            probe.mkdir(parents=False, exist_ok=False)
+            probe.rmdir()
             return path
         except (OSError, PermissionError):
             continue
