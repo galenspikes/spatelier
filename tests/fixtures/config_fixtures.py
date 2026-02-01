@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 import pytest
 
-from core.config import AudioConfig, Config, VideoConfig
+from spatelier.core.config import AudioConfig, Config, VideoConfig
 
 
 @pytest.fixture

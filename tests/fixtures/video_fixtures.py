@@ -13,8 +13,8 @@ from unittest.mock import Mock, patch
 import pytest
 
 try:
-    from database.transcription_storage import SQLiteTranscriptionStorage
-    from modules.video.services.transcription_service import TranscriptionService
+    from spatelier.database.transcription_storage import SQLiteTranscriptionStorage
+    from spatelier.modules.video.services.transcription_service import TranscriptionService
 except ImportError:
     # Optional dependency - tests that need this will import it directly
     TranscriptionService = None
@@ -209,7 +209,7 @@ def transcription_service_factory():
     def _create_service(
         model_size: str = "base", verbose: bool = False
     ) -> TranscriptionService:
-        from core.config import Config
+        from spatelier.core.config import Config
 
         config = Config()
         config.transcription.default_model = model_size

@@ -1,0 +1,50 @@
+# Git and IDE
+.git
+.gitignore
+.idea
+.vscode
+.cursorrules
+
+# Python envs and caches
+.venv
+venv
+env
+__pycache__
+*.py[cod]
+.pytest_cache
+.mypy_cache
+.coverage
+htmlcov
+.tox
+*.egg-info
+build
+dist
+.eggs
+
+# Tests and dev docs (not needed in image)
+tests
+docs
+*.md
+!README.md
+
+# Local data and secrets
+.data
+.temp
+*.log
+config.yaml
+*.pickle
+*.key
+*.pem
+.vault
+
+# OS and misc
+.DS_Store
+activate
+Makefile
+.pre-commit-config.yaml
+.flake8
+alembic.ini
+migrations
+Formula
+scripts
+poetry.lock

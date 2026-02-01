@@ -10,10 +10,10 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from core.config import Config
-from database.metadata import MetadataExtractor, MetadataManager
-from database.models import MediaFile, MediaType
-from database.repository import MediaFileRepository
+from spatelier.core.config import Config
+from spatelier.database.metadata import MetadataExtractor, MetadataManager
+from spatelier.database.models import MediaFile, MediaType
+from spatelier.database.repository import MediaFileRepository
 
 
 @pytest.fixture

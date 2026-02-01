@@ -8,8 +8,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from utils.cookie_manager import CookieManager
-from utils.ytdlp_auth_handler import YtDlpAuthHandler
+from spatelier.utils.cookie_manager import CookieManager
+from spatelier.utils.ytdlp_auth_handler import YtDlpAuthHandler
 
 
 @pytest.fixture

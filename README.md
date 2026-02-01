@@ -118,6 +118,29 @@ pre-commit install
 
 Download the latest release from [GitHub Releases](https://github.com/galenspikes/spatelier/releases) and run directly (no Python installation required).
 
+### Docker
+
+Run spatelier in a container (no local Python or ffmpeg required). The image includes ffmpeg and Chromium for YouTube cookie refresh. Supports linux/amd64 (e.g. QNAP, x86 PCs) and linux/arm64 (e.g. Apple Silicon, ARM NAS).
+
+```bash
+# Pull from Docker Hub (no build required). Use :latest or a specific version (e.g. :0.4.1)
+docker pull galenspikes/spatelier:latest
+
+# Or build from source
+docker build -t spatelier .
+
+# Run (version check)
+docker run --rm galenspikes/spatelier:latest --version
+
+# Run with volume mounts for config and downloads
+docker run --rm -it \
+  -v "$HOME/.config/spatelier:/home/app/.config/spatelier" \
+  -v "/path/to/downloads:/home/app/downloads" \
+  galenspikes/spatelier:latest video download "https://youtube.com/watch?v=..."
+```
+
+Mount your config dir so the database and settings persist. Mount a host directory as the download output (e.g. `-v /path/to/downloads:/home/app/downloads` and set output path via config or CLI). On QNAP Container Station, create a container from the image and add the same volume mounts in the UI.
+
 ### Troubleshooting
 
 If you're having issues with installation, see [GLOBAL_INSTALL.md](GLOBAL_INSTALL.md) for global installation options.

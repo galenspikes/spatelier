@@ -13,10 +13,10 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 from sqlalchemy import text
 
-from core.config import Config
-from database.models import Base
-from database.transcription_storage import SQLiteTranscriptionStorage
-from modules.video.services.transcription_service import TranscriptionService
+from spatelier.core.config import Config
+from spatelier.database.models import Base
+from spatelier.database.transcription_storage import SQLiteTranscriptionStorage
+from spatelier.modules.video.services.transcription_service import TranscriptionService
 
 
 class TestTranscriptionService:
@@ -47,7 +47,7 @@ class TestTranscriptionService:
     def transcription_service(self, mock_whisper_model):
         """Create transcription service with mocked Whisper."""
         with patch(
-            "modules.video.services.transcription_service.WhisperModel", create=True
+            "spatelier.modules.video.services.transcription_service.WhisperModel", create=True
         ) as mock_whisper_class:
             mock_whisper_class.return_value = mock_whisper_model
 

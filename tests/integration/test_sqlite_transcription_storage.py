@@ -27,11 +27,11 @@ except ImportError:
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
 
-from core.config import Config
-from database.connection import DatabaseManager
-from database.models import Base, MediaFile, MediaType, Transcription
-from database.transcription_storage import SQLiteTranscriptionStorage
-from modules.video.services.transcription_service import TranscriptionService
+from spatelier.core.config import Config
+from spatelier.database.connection import DatabaseManager
+from spatelier.database.models import Base, MediaFile, MediaType, Transcription
+from spatelier.database.transcription_storage import SQLiteTranscriptionStorage
+from spatelier.modules.video.services.transcription_service import TranscriptionService
 
 
 class TestSQLiteTranscriptionStorageIntegration:
@@ -510,7 +510,7 @@ class TestSQLiteTranscriptionStorageIntegration:
     ):
         """Test full TranscriptionService integration with SQLite storage."""
         # Use DatabaseServiceFactory instead of DatabaseManager directly
-        from core.database_service import DatabaseServiceFactory
+        from spatelier.core.database_service import DatabaseServiceFactory
 
         db_factory = DatabaseServiceFactory(test_config, verbose=False)
         db_manager = db_factory.get_db_manager()
@@ -534,7 +534,7 @@ class TestSQLiteTranscriptionStorageIntegration:
 
         # Mock Whisper availability
         with patch(
-            "modules.video.services.transcription_service.WHISPER_AVAILABLE", True
+            "spatelier.modules.video.services.transcription_service.WHISPER_AVAILABLE", True
         ):
             # Mock the model's transcribe method to return proper format
             mock_segments = [

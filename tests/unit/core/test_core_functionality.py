@@ -10,16 +10,16 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from core.base import BaseConverter, BaseDownloader, BaseProcessor, ProcessingResult
-from core.config import (
+from spatelier.core.base import BaseConverter, BaseDownloader, BaseProcessor, ProcessingResult
+from spatelier.core.config import (
     AudioConfig,
     Config,
     DatabaseConfig,
     TranscriptionConfig,
     VideoConfig,
 )
-from core.logger import get_logger, setup_logging
-from utils.helpers import (
+from spatelier.core.logger import get_logger, setup_logging
+from spatelier.utils.helpers import (
     find_files,
     format_file_size,
     get_file_hash,

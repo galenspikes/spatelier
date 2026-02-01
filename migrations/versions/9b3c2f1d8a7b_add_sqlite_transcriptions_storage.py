@@ -10,6 +10,7 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy import inspect
 
 # revision identifiers, used by Alembic.
 revision: str = "9b3c2f1d8a7b"
@@ -18,39 +19,44 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _table_exists(conn: sa.engine.Connection, table_name: str) -> bool:
+    return table_name in inspect(conn).get_table_names()
+
+
 def upgrade() -> None:
     """Add transcription storage tables for SQLite."""
-    op.create_table(
-        "transcriptions",
-        sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column(
-            "media_file_id",
-            sa.Integer(),
-            sa.ForeignKey("media_files.id"),
-            nullable=False,
-        ),
-        sa.Column("language", sa.String(length=10), nullable=True),
-        sa.Column("duration", sa.Float(), nullable=True),
-        sa.Column("processing_time", sa.Float(), nullable=True),
-        sa.Column("model_used", sa.String(length=100), nullable=True),
-        sa.Column("segments_json", sa.JSON(), nullable=False),
-        sa.Column("full_text", sa.Text(), nullable=False),
-        sa.Column(
-            "created_at", sa.DateTime(), server_default=sa.func.now(), nullable=False
-        ),
-    )
-    op.create_index(
-        op.f("ix_transcriptions_id"), "transcriptions", ["id"], unique=False
-    )
-    op.create_index(
-        op.f("ix_transcriptions_media_file_id"),
-        "transcriptions",
-        ["media_file_id"],
-        unique=False,
-    )
-
     bind = op.get_bind()
-    if bind.dialect.name == "sqlite":
+    if not _table_exists(bind, "transcriptions"):
+        op.create_table(
+            "transcriptions",
+            sa.Column("id", sa.Integer(), primary_key=True),
+            sa.Column(
+                "media_file_id",
+                sa.Integer(),
+                sa.ForeignKey("media_files.id"),
+                nullable=False,
+            ),
+            sa.Column("language", sa.String(length=10), nullable=True),
+            sa.Column("duration", sa.Float(), nullable=True),
+            sa.Column("processing_time", sa.Float(), nullable=True),
+            sa.Column("model_used", sa.String(length=100), nullable=True),
+            sa.Column("segments_json", sa.JSON(), nullable=False),
+            sa.Column("full_text", sa.Text(), nullable=False),
+            sa.Column(
+                "created_at", sa.DateTime(), server_default=sa.func.now(), nullable=False
+            ),
+        )
+        op.create_index(
+            op.f("ix_transcriptions_id"), "transcriptions", ["id"], unique=False
+        )
+        op.create_index(
+            op.f("ix_transcriptions_media_file_id"),
+            "transcriptions",
+            ["media_file_id"],
+            unique=False,
+        )
+
+    if bind.dialect.name == "sqlite" and not _table_exists(bind, "transcriptions_fts"):
         op.execute(
             "CREATE VIRTUAL TABLE transcriptions_fts USING fts5("
             "full_text, content='transcriptions', content_rowid='id'"
@@ -85,6 +91,7 @@ def downgrade() -> None:
         op.execute("DROP TRIGGER IF EXISTS transcriptions_ai")
         op.execute("DROP TABLE IF EXISTS transcriptions_fts")
 
-    op.drop_index(op.f("ix_transcriptions_media_file_id"), table_name="transcriptions")
-    op.drop_index(op.f("ix_transcriptions_id"), table_name="transcriptions")
-    op.drop_table("transcriptions")
+    if _table_exists(bind, "transcriptions"):
+        op.drop_index(op.f("ix_transcriptions_media_file_id"), table_name="transcriptions")
+        op.drop_index(op.f("ix_transcriptions_id"), table_name="transcriptions")
+        op.drop_table("transcriptions")

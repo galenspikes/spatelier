@@ -12,7 +12,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-# from modules.audio.converter import AudioConverter  # Module doesn't exist yet
+# from spatelier.modules.audio.converter import AudioConverter  # Module doesn't exist yet
 
 
 @pytest.fixture

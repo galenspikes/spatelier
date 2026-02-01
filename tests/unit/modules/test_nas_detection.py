@@ -5,8 +5,8 @@ Tests for NAS detection and local temp processing functionality.
 from pathlib import Path
 from unittest.mock import patch
 
-from core.config import Config
-from modules.video.services.download_service import VideoDownloadService
+from spatelier.core.config import Config
+from spatelier.modules.video.services.download_service import VideoDownloadService
 
 
 class TestNASDetection:
@@ -122,7 +122,7 @@ class TestNASDetection:
 
         assert not temp_dir.exists()
 
-    @patch("modules.video.services.download_service.VideoDownloadService._is_nas_path")
+    @patch("spatelier.modules.video.services.download_service.VideoDownloadService._is_nas_path")
     def test_nas_processing_workflow(self, mock_is_nas):
         """Test that NAS path detection is used in the workflow."""
         config = Config()

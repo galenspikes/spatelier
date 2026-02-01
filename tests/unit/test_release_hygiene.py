@@ -5,10 +5,15 @@ Ensures we don't regress on release-script log path and pytest config,
 so 'make release' and test runs stay clean.
 Also validates that all top-level Python packages are included in the
 setuptools manifest so the installed package works (no ModuleNotFoundError).
+Long-term: test against the built wheel in a clean venv so we catch manifest
+drift even if someone edits pyproject without running the manifest test.
 """
 
+import os
 import re
 import subprocess
+import sys
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -74,39 +79,110 @@ class TestPytestAlembicWarningFilter:
 
 
 class TestSetuptoolsPackageManifest:
-    """All top-level Python packages must be in setuptools.packages.find.include.
+    """Single installable package: setuptools must include spatelier* only.
 
-    Prevents ModuleNotFoundError when running the installed package (e.g. via
-    Homebrew) because a package was omitted from the manifest.
+    All code lives under spatelier/; no per-package manifest to maintain.
     """
 
-    # Directories at repo root we do not install as packages
-    _EXCLUDE = {"tests", "migrations", "config", "docs", "scripts", "Formula", ".github"}
-
-    def test_all_top_level_packages_in_setuptools_include(self):
-        """Every top-level package dir (with __init__.py) must be in pyproject include list."""
+    def test_single_package_in_setuptools_include(self):
+        """pyproject must ship only spatelier (include = ['spatelier*'])."""
         pyproject = (PROJECT_ROOT / "pyproject.toml").read_text()
         match = re.search(r'\[tool\.setuptools\.packages\.find\].*?include\s*=\s*\[(.*?)\]', pyproject, re.DOTALL)
         assert match, "pyproject.toml should have [tool.setuptools.packages.find] include = [...]"
         include_raw = match.group(1)
         include_entries = [s.strip().strip('"').strip("'") for s in re.split(r",\s*", include_raw) if s.strip()]
 
-        top_level_packages = [
-            d.name
-            for d in PROJECT_ROOT.iterdir()
-            if d.is_dir() and (d / "__init__.py").exists() and d.name not in self._EXCLUDE
-        ]
-
-        missing = []
-        for pkg in top_level_packages:
-            covered = any(
-                entry == pkg or entry == f"{pkg}*" or (entry.endswith("*") and entry.rstrip("*") == pkg)
-                for entry in include_entries
-            )
-            if not covered:
-                missing.append(pkg)
-
-        assert not missing, (
-            f"pyproject.toml setuptools.packages.find.include is missing top-level packages: {missing}. "
-            "Add e.g. 'domain*' and 'infrastructure*' so the installed package can import them."
+        assert "spatelier*" in include_entries or "spatelier" in include_entries, (
+            "pyproject.toml setuptools.packages.find.include must include 'spatelier*' (single-package layout)."
         )
+        spatelier_dir = PROJECT_ROOT / "spatelier"
+        assert spatelier_dir.is_dir() and (spatelier_dir / "__init__.py").exists(), (
+            "spatelier/ package directory with __init__.py must exist."
+        )
+
+
+class TestInstalledPackageSmoke:
+    """Run against the built wheel in a clean venv (no repo on path).
+
+    Long-term guard: if someone removes a package from setuptools include,
+    the wheel won't contain it and this test fails. The manifest test above
+    only checks pyproject text; this test checks the actual built artifact.
+    """
+
+    def test_installed_package_has_domain_and_infrastructure(self):
+        """Build wheel, install in clean venv, verify domain and infrastructure import."""
+        with tempfile.TemporaryDirectory(prefix="spatelier_install_test_") as tmp:
+            tmp_path = Path(tmp)
+            wheel_dir = tmp_path / "wheel"
+            wheel_dir.mkdir()
+            venv_dir = tmp_path / "venv"
+
+            # Build wheel from current source (no network for build)
+            build = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "pip",
+                    "wheel",
+                    "--no-deps",
+                    "--no-build-isolation",
+                    "-w",
+                    str(wheel_dir),
+                    str(PROJECT_ROOT),
+                ],
+                capture_output=True,
+                text=True,
+                cwd=PROJECT_ROOT,
+                timeout=120,
+            )
+            assert build.returncode == 0, (
+                f"pip wheel failed: {build.stderr or build.stdout}"
+            )
+
+            wheels = list(wheel_dir.glob("spatelier-*.whl"))
+            assert len(wheels) == 1, f"Expected one wheel, got {wheels}"
+            wheel_file = wheels[0]
+
+            # Create clean venv (no repo on path)
+            venv_create = subprocess.run(
+                [sys.executable, "-m", "venv", str(venv_dir)],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if venv_create.returncode != 0:
+                pytest.skip(
+                    "Could not create venv for installed-package smoke test: "
+                    f"{venv_create.stderr or venv_create.stdout}"
+                )
+
+            pip = venv_dir / "bin" / "pip"
+            python = venv_dir / "bin" / "python"
+
+            # Install wheel only (no deps) so we only check package layout
+            install = subprocess.run(
+                [str(pip), "install", "--no-deps", str(wheel_file), "-q"],
+                capture_output=True,
+                text=True,
+                cwd=str(tmp_path),
+                timeout=60,
+            )
+            assert install.returncode == 0, (
+                f"pip install wheel failed: {install.stderr or install.stdout}"
+            )
+
+            # Run from venv: import spatelier and subpackages (no repo on path)
+            run = subprocess.run(
+                [str(python), "-c", "import spatelier; import spatelier.domain; import spatelier.infrastructure; print('ok')"],
+                capture_output=True,
+                text=True,
+                cwd=str(tmp_path),
+                timeout=10,
+                env={k: v for k, v in os.environ.items() if k != "PYTHONPATH"},
+            )
+            assert run.returncode == 0, (
+                "Installed package missing spatelier.domain or spatelier.infrastructure (ModuleNotFoundError). "
+                "Ensure spatelier/ contains all subpackages. "
+                f"stderr: {run.stderr} stdout: {run.stdout}"
+            )
+            assert "ok" in (run.stdout or "")

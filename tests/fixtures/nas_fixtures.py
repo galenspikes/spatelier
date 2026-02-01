@@ -18,8 +18,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from core.config import Config
-from core.service_factory import ServiceFactory
+from spatelier.core.config import Config
+from spatelier.core.service_factory import ServiceFactory
 
 # Default NAS root; if it doesn't exist, we fall back to home or tmp
 NAS_PATH_ROOT_DEFAULT = Path("/Volumes/NAS")

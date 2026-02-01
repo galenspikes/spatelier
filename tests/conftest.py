@@ -199,10 +199,11 @@ def pytest_collection_modifyitems(config, items):
 
 def pytest_runtest_setup(item):
     """Set up test run."""
-    # Skip NAS tests only when marked and NAS root is not available
+    # Skip NAS tests only when no writable root is available (same logic as nas_fixtures: NAS, home, or tmp)
     if item.get_closest_marker("nas"):
-        from tests.fixtures.nas_fixtures import NAS_PATH_ROOT_DEFAULT
-        if not NAS_PATH_ROOT_DEFAULT.exists():
+        from tests.fixtures.nas_fixtures import get_nas_path_root
+        root = get_nas_path_root()
+        if not root.exists():
             pytest.skip("NAS not available for testing")
 
 

@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-from utils.helpers import get_file_hash, get_file_size, get_file_type
+from spatelier.utils.helpers import get_file_hash, get_file_size, get_file_type
 
 
 def assert_video_file_valid(file_path: Union[str, Path], message: str = None) -> None:
@@ -158,7 +158,7 @@ def assert_processing_job_status(
     session, job_id: int, expected_status: str, message: str = None
 ) -> None:
     """Assert that a processing job has the expected status."""
-    from database.models import ProcessingJob
+    from spatelier.database.models import ProcessingJob
 
     job = session.query(ProcessingJob).filter_by(id=job_id).first()
     if job is None:
@@ -177,7 +177,7 @@ def assert_media_file_metadata(
     session, media_file_id: int, expected_metadata: Dict[str, Any], message: str = None
 ) -> None:
     """Assert that a media file has the expected metadata."""
-    from database.models import MediaFile
+    from spatelier.database.models import MediaFile
 
     media_file = session.query(MediaFile).filter_by(id=media_file_id).first()
     if media_file is None:
@@ -202,7 +202,7 @@ def assert_analytics_event_tracked(
     message: str = None,
 ) -> None:
     """Assert that an analytics event was tracked."""
-    from database.models import AnalyticsEvent
+    from spatelier.database.models import AnalyticsEvent
 
     query = session.query(AnalyticsEvent).filter_by(event_type=event_type)
     if media_file_id is not None:

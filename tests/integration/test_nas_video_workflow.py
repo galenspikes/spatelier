@@ -14,11 +14,11 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from core.config import Config, get_default_data_dir
-from core.service_factory import ServiceFactory
-from infrastructure.storage.storage_adapter import NASStorageAdapter
-from modules.video.services.download_service import VideoDownloadService
-from modules.video.services.transcription_service import TranscriptionService
+from spatelier.core.config import Config, get_default_data_dir
+from spatelier.core.service_factory import ServiceFactory
+from spatelier.infrastructure.storage.storage_adapter import NASStorageAdapter
+from spatelier.modules.video.services.download_service import VideoDownloadService
+from spatelier.modules.video.services.transcription_service import TranscriptionService
 from tests.fixtures.nas_fixtures import *
 
 
