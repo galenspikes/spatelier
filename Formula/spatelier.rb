@@ -4,7 +4,7 @@ class Spatelier < Formula
   desc "Personal tool library for video and music file handling"
   homepage "https://github.com/galenspikes/spatelier"
   url "https://github.com/galenspikes/spatelier/archive/refs/tags/v0.4.1.tar.gz"
-  sha256 "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  sha256 "c4a37bb73dd09364a3f4776a4d532dddca3bb9fcbf4c8237e6d72093f9dac890"
   license "MIT"
   head "https://github.com/galenspikes/spatelier.git", branch: "main"
 
