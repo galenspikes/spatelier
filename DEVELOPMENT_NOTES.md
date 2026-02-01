@@ -41,7 +41,7 @@ This document tracks issues, features, notes, and takeaways from development wor
 
 **Problem:**
 - Homebrew installation failed silently during `pip install`
-- Logs showed: `Failed to execute: /opt/homebrew/Cellar/spatelier/0.3.4/libexec/bin/pip`
+- Logs showed: `Failed to execute: $(brew --prefix)/Cellar/spatelier/0.3.4/libexec/bin/pip` (or `/usr/local/...` on Intel)
 - The venv was created with `--without-pip`, so pip wasn't available
 
 **Root Cause:**
@@ -89,7 +89,7 @@ This document tracks issues, features, notes, and takeaways from development wor
 
 **Problem:**
 - Installation still failed silently
-- Pip log showed: `Requirement already satisfied: pip in /opt/homebrew/lib/python3.12/site-packages`
+- Pip log showed: `Requirement already satisfied: pip in $(brew --prefix)/lib/python3.12/site-packages`
 - `ensurepip` found system pip and didn't install into venv
 - Missing `bin/pip` symlink in venv
 
@@ -148,7 +148,7 @@ end
 
 ### 6. Testing Homebrew Installations
 - Use verbose flags: `HOMEBREW_VERBOSE=1 HOMEBREW_DEBUG=1 HOMEBREW_KEEP_TMP=1 brew install -v spatelier`
-- Check logs: `/Users/galenspikes/Library/Logs/Homebrew/spatelier/`
+- Check logs: `~/Library/Logs/Homebrew/spatelier/`
 - Look for silent failures in pip installation logs
 
 ### 7. No Workarounds Policy

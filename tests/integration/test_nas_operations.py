@@ -2,7 +2,7 @@
 Integration tests for NAS operations.
 
 Tests actual NAS functionality using the parametrized NAS path
-(default /Volumes/Public-01/.spatelier/tests, or home/tmp fallback).
+(default /Volumes/NAS/.spatelier/tests, or home/tmp fallback).
 """
 
 import shutil

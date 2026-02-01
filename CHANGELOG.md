@@ -7,11 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - (release date TBD)
+
+### Fixed
+- Installed package: include `domain*` and `infrastructure*` in setuptools `packages.find.include` so the installed CLI (e.g. Homebrew) no longer raises `ModuleNotFoundError: No module named 'domain'`.
+
+### Added
+- Release hygiene: test that every top-level Python package is listed in `pyproject.toml` setuptools include, to prevent this regression.
+
+### Changed
+- Docs and scripts: replaced repo-specific paths with generics (e.g. `/path/to/spatelier`, `$(brew --prefix)`, `/Volumes/NAS`, `~/Library/Logs/Homebrew/`).
+
 ## [0.4.0] - 2026-01-31
 
 ### Added
 - NAS support: `StorageAdapter.can_write_to(path)` to verify write access before download; download/playlist flows check remote paths and return a clear error if not writable.
-- Parametrized NAS test path: tests use `.spatelier/tests/` under a configurable root (default `/Volumes/Public-01`, fallback home/tmp); `nas_available` only true when root is actual NAS.
+- Parametrized NAS test path: tests use `.spatelier/tests/` under a configurable root (default `/Volumes/NAS`, fallback home/tmp); `nas_available` only true when root is actual NAS.
 - tests/unit/test_release_hygiene.py: Tests that release script uses absolute log path, pytest config is single-source, and Alembic warning filter is present.
 
 ### Fixed

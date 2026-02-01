@@ -4,7 +4,7 @@ NAS-specific test fixtures.
 Provides fixtures for testing NAS operations including
 path detection, file operations, and performance testing.
 
-NAS path is parametrized: default root is /Volumes/Public-01; if that does not
+NAS path is parametrized: default root is /Volumes/NAS; if that does not
 exist, falls back to home dir, then tmp. Test subdir is .spatelier/tests/ and
 is created if missing.
 """
@@ -22,7 +22,7 @@ from core.config import Config
 from core.service_factory import ServiceFactory
 
 # Default NAS root; if it doesn't exist, we fall back to home or tmp
-NAS_PATH_ROOT_DEFAULT = Path("/Volumes/Public-01")
+NAS_PATH_ROOT_DEFAULT = Path("/Volumes/NAS")
 
 
 def _candidate_roots() -> list[Path]:
@@ -35,7 +35,7 @@ def _candidate_roots() -> list[Path]:
 
 
 def get_nas_path_root() -> Path:
-    """Return NAS/test root: default /Volumes/Public-01 if it exists, else home, else tmp."""
+    """Return NAS/test root: default /Volumes/NAS if it exists, else home, else tmp."""
     for root in _candidate_roots():
         if root.exists():
             return root

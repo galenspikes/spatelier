@@ -86,7 +86,7 @@ After these, run the full NAS-related and performance test suites and fix any re
 
 ## 6. Parametrize NAS path for tests (done)
 
-- **Default root:** `/Volumes/Public-01`. If it doesn’t exist, fall back to home dir, then tmp.
+- **Default root:** `/Volumes/NAS`. If it doesn’t exist, fall back to home dir, then tmp.
 - **Subdir:** `.spatelier/tests/` under that root. Created if missing.
 - **Implementation:** `tests/fixtures/nas_fixtures.py`: `get_nas_path_root()`, `get_nas_tests_path()`, `NAS_PATH_ROOT_DEFAULT`. No env var; all in code.
 - **`nas_available`:** True only when the default NAS root exists (real NAS in use).

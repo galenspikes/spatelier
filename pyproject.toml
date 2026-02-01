@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "spatelier"
-version = "0.4.0"
+version = "0.4.1"
 description = "Personal tool library for video and music file handling"
 authors = [
     {name = "Galen Spikes", email = "galenspikes@gmail.com"}
@@ -133,7 +133,7 @@ spatelier = "spatelier.cli.app:main_entry"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["spatelier*", "cli*", "core*", "database*", "modules*", "analytics*", "utils*"]
+include = ["spatelier*", "cli*", "core*", "database*", "modules*", "analytics*", "utils*", "domain*", "infrastructure*"]
 
 [tool.black]
 line-length = 88
