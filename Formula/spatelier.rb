@@ -8,6 +8,9 @@ class Spatelier < Formula
   license "MIT"
   head "https://github.com/galenspikes/spatelier.git", branch: "main"
 
+  # Skip relinking libexec; av/faster-whisper dylibs have paths that don't fit in Mach-O header
+  skip_clean "libexec"
+
   depends_on "python@3.12"
   # ffmpeg is required: ffmpeg-python is just a wrapper that calls the system ffmpeg binary
   # Used for video/audio conversion, subtitle embedding, and metadata extraction
