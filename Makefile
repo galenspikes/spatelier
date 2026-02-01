@@ -94,7 +94,10 @@ build-executable: ## Build standalone executable (requires pyinstaller and venv 
 
 check: format-check lint test ## Run all checks
 
-release: ## Create a new release (updates version, creates tag, triggers GitHub Actions)
+sync-version: ## Sync __version__ in spatelier/__init__.py and __init__.py from pyproject.toml (run after bumping version)
+	@bash scripts/sync_version.sh
+
+release: ## Create a new release (version in pyproject.toml; run make sync-version first if you bumped it)
 	@bash scripts/release.sh
 
 update-homebrew: ## Update Homebrew formula with latest release SHA256 (usage: make update-homebrew TAG=v0.1.0)

@@ -53,6 +53,20 @@ log_and_echo -e "${GREEN}🚀 Starting release process for ${TAG}${NC}"
 log_and_echo -e "${GREEN}📝 Logging to: ${LOG_FILE}${NC}"
 log_and_echo ""
 
+# Ensure version is synced (pyproject.toml is single source of truth; __init__.py must match)
+for file in spatelier/__init__.py __init__.py; do
+    if [ -f "$file" ]; then
+        if ! grep -q "__version__ = \"${VERSION}\"" "$file" 2>/dev/null; then
+            log_and_echo -e "${RED}Error: ${file} has different __version__ than pyproject.toml (${VERSION})${NC}"
+            log_plain "ERROR: Version mismatch in $file"
+            log_and_echo "  Run: ./scripts/sync_version.sh  (then commit and run release again)"
+            exit 1
+        fi
+    fi
+done
+log_and_echo -e "${GREEN}✅ Version ${VERSION} synced across pyproject.toml and __init__.py files${NC}"
+log_plain "SUCCESS: Version synced"
+
 # Check if tag already exists
 if git rev-parse "$TAG" >/dev/null 2>&1; then
     log_and_echo -e "${RED}Error: Tag ${TAG} already exists${NC}"
@@ -261,3 +275,6 @@ log_plain "Log file: ${LOG_FILE}"
 log_plain "=========================================="
 log_and_echo ""
 log_and_echo -e "${GREEN}📝 Full log saved to: ${LOG_FILE}${NC}"
+log_and_echo ""
+log_and_echo -e "${YELLOW}Docker: To publish image with this version (and latest), run:${NC}"
+log_and_echo "  docker buildx build --platform linux/amd64,linux/arm64 -t galenspikes/spatelier:${VERSION} -t galenspikes/spatelier:latest --push ."

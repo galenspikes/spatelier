@@ -123,7 +123,7 @@ Download the latest release from [GitHub Releases](https://github.com/galenspike
 Run spatelier in a container (no local Python or ffmpeg required). The image includes ffmpeg and Chromium for YouTube cookie refresh. Supports linux/amd64 (e.g. QNAP, x86 PCs) and linux/arm64 (e.g. Apple Silicon, ARM NAS).
 
 ```bash
-# Pull from Docker Hub (no build required)
+# Pull from Docker Hub (no build required). Use :latest or a specific version (e.g. :0.4.1)
 docker pull galenspikes/spatelier:latest
 
 # Or build from source
