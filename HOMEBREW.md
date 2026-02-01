@@ -49,7 +49,7 @@ spatelier video download <url>
    - You never run pip yourself
 
 4. **Homebrew installs the command:**
-   - `spatelier` goes to `/opt/homebrew/bin/spatelier`
+   - `spatelier` goes to `$(brew --prefix)/bin/spatelier` (e.g. `/opt/homebrew/bin` on Apple Silicon, `/usr/local/bin` on Intel)
    - Available system-wide
    - No PATH configuration needed
 

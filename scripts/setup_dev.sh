@@ -22,9 +22,10 @@ echo "✅ Python version: $python_version"
 # against Homebrew libraries (like gettext) that may be removed or moved.
 if [ ! -d "venv" ]; then
     echo "📦 Creating virtual environment..."
-    if [ -f "/opt/homebrew/opt/python@3.12/bin/python3.12" ]; then
+    HOMEBREW_PREFIX="${HOMEBREW_PREFIX:-$(brew --prefix 2>/dev/null)}"
+    if [ -n "$HOMEBREW_PREFIX" ] && [ -f "${HOMEBREW_PREFIX}/opt/python@3.12/bin/python3.12" ]; then
         echo "   ✓ Using Homebrew Python 3.12 (recommended - more stable)"
-        /opt/homebrew/opt/python@3.12/bin/python3.12 -m venv venv
+        "${HOMEBREW_PREFIX}/opt/python@3.12/bin/python3.12" -m venv venv
     elif command -v python3.12 &> /dev/null; then
         PYTHON_PATH=$(which python3.12)
         if [[ "$PYTHON_PATH" == *".pyenv"* ]]; then

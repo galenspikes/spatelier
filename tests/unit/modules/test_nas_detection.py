@@ -18,7 +18,7 @@ class TestNASDetection:
         downloader = VideoDownloadService(config, verbose=False)
 
         # Test macOS NAS paths
-        assert downloader._is_nas_path(Path("/Volumes/Public-01/test/")) == True
+        assert downloader._is_nas_path(Path("/Volumes/NAS/test/")) == True
         assert downloader._is_nas_path(Path("/Volumes/NAS/videos/")) == True
         assert downloader._is_nas_path(Path("/Volumes/Time Machine/")) == True
 
@@ -130,7 +130,7 @@ class TestNASDetection:
 
         mock_is_nas.return_value = True
 
-        output_path = Path("/Volumes/Public-01/test.mp4")
+        output_path = Path("/Volumes/NAS/test.mp4")
         is_nas = downloader._is_nas_path(output_path)
 
         assert is_nas is True

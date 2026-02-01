@@ -1,6 +1,6 @@
 #!/bin/bash
 # Quick activation script - just run: source activate
-# Or add to your shell: alias spatelier-env="cd /Users/galenspikes/repos/spatelier && source venv/bin/activate"
+# Or add to your shell: alias spatelier-env="cd /path/to/spatelier && source venv/bin/activate"
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 source venv/bin/activate

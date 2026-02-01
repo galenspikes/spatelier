@@ -14,7 +14,7 @@ pipx ensurepath  # Adds pipx to your PATH
 
 ### Install Spatelier globally
 ```bash
-cd /Users/galenspikes/repos/spatelier
+cd /path/to/spatelier
 pipx install -e .
 ```
 
@@ -31,7 +31,7 @@ Build a single executable file that works without Python:
 
 ### Build it
 ```bash
-cd /Users/galenspikes/repos/spatelier
+cd /path/to/spatelier
 source venv/bin/activate  # Only needed for building
 pip install pyinstaller
 make build-executable
@@ -50,7 +50,7 @@ Now `spatelier` works from anywhere!
 ## Option 3: User Installation (if pipx doesn't work)
 
 ```bash
-cd /Users/galenspikes/repos/spatelier
+cd /path/to/spatelier
 python3 -m pip install --user -e .
 ```
 
@@ -81,7 +81,7 @@ brew install pipx
 pipx ensurepath
 
 # 2. Install Spatelier
-cd /Users/galenspikes/repos/spatelier
+cd /path/to/spatelier
 pipx install -e .
 
 # 3. Use it anywhere!

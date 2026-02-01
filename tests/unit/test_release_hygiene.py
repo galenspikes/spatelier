@@ -3,8 +3,11 @@ Tests for release script and pre-release config hygiene.
 
 Ensures we don't regress on release-script log path and pytest config,
 so 'make release' and test runs stay clean.
+Also validates that all top-level Python packages are included in the
+setuptools manifest so the installed package works (no ModuleNotFoundError).
 """
 
+import re
 import subprocess
 from pathlib import Path
 
@@ -68,3 +71,42 @@ class TestPytestAlembicWarningFilter:
             "pytest.ini should filter Alembic 'autoincrement only make sense for MySQL' warning"
         )
         assert "UserWarning" in pytest_ini or "filterwarnings" in pytest_ini
+
+
+class TestSetuptoolsPackageManifest:
+    """All top-level Python packages must be in setuptools.packages.find.include.
+
+    Prevents ModuleNotFoundError when running the installed package (e.g. via
+    Homebrew) because a package was omitted from the manifest.
+    """
+
+    # Directories at repo root we do not install as packages
+    _EXCLUDE = {"tests", "migrations", "config", "docs", "scripts", "Formula", ".github"}
+
+    def test_all_top_level_packages_in_setuptools_include(self):
+        """Every top-level package dir (with __init__.py) must be in pyproject include list."""
+        pyproject = (PROJECT_ROOT / "pyproject.toml").read_text()
+        match = re.search(r'\[tool\.setuptools\.packages\.find\].*?include\s*=\s*\[(.*?)\]', pyproject, re.DOTALL)
+        assert match, "pyproject.toml should have [tool.setuptools.packages.find] include = [...]"
+        include_raw = match.group(1)
+        include_entries = [s.strip().strip('"').strip("'") for s in re.split(r",\s*", include_raw) if s.strip()]
+
+        top_level_packages = [
+            d.name
+            for d in PROJECT_ROOT.iterdir()
+            if d.is_dir() and (d / "__init__.py").exists() and d.name not in self._EXCLUDE
+        ]
+
+        missing = []
+        for pkg in top_level_packages:
+            covered = any(
+                entry == pkg or entry == f"{pkg}*" or (entry.endswith("*") and entry.rstrip("*") == pkg)
+                for entry in include_entries
+            )
+            if not covered:
+                missing.append(pkg)
+
+        assert not missing, (
+            f"pyproject.toml setuptools.packages.find.include is missing top-level packages: {missing}. "
+            "Add e.g. 'domain*' and 'infrastructure*' so the installed package can import them."
+        )
