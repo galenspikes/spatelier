@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-01-31
+
+### Added
+- NAS support: `StorageAdapter.can_write_to(path)` to verify write access before download; download/playlist flows check remote paths and return a clear error if not writable.
+- Parametrized NAS test path: tests use `.spatelier/tests/` under a configurable root (default `/Volumes/Public-01`, fallback home/tmp); `nas_available` only true when root is actual NAS.
+
+### Fixed
+- NAS tests: use real `Config()` (or `nas_config` fixture) instead of `Mock(spec=Config)` so `database.sqlite_path`, `video.temp_dir`, etc. are set; fixes `AttributeError` in metadata and DB paths.
+- VideoDownloadService: added delegation methods `_is_nas_path`, `_get_temp_processing_dir`, `_move_file_to_final_destination`, `_cleanup_temp_directory`, `_move_playlist_to_final_destination` for NAS/StorageAdapter; tests updated to use `download_video`, `PlaylistService`, `TranscriptionService` (or use cases).
+- Media file tracker: always check for existing media by path; pass `mime_type` into `repos.media.create()` to fix `NOT NULL constraint failed: media_files.mime_type`.
+- Playlist/job: convert `output_path` to string before `job_manager.update_job()` and coerce in job_manager to fix PosixPath/serialization issues.
+- NAS performance tests: use `write_bytes`/`read_bytes` for byte content and `write_text`/`read_text` for str to fix `TypeError: data must be str, not bytes`.
+
+### Changed
+- Integration NAS tests: `test_nas_dir_is_writable` and `test_nas_permissions_and_access` use `can_write_to()`; skip with a clear message when path is not writable (e.g. NFS/SMB permission issues on macOS).
+
 ## [0.3.9] - 2026-01-23
 
 ### Fixed
