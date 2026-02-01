@@ -10,7 +10,7 @@ Prefer: pip install -e . then use the 'spatelier' console script.
 from pathlib import Path
 import sys
 
-__version__ = "0.4.1"
+__version__ = "0.4.2"
 __author__ = "Galen Spikes"
 __email__ = "galenspikes@gmail.com"
 

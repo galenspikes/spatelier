@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-02-01
+
+### Added
+- **Docker:** Official image on Docker Hub (`galenspikes/spatelier`). Multi-platform (linux/amd64 and linux/arm64) for QNAP, Apple Silicon, and x86. Includes ffmpeg and Chromium for YouTube cookie refresh. See README for pull and run with volume mounts.
+- **Version tracking:** Single source of truth in `pyproject.toml`. `make sync-version` (or `scripts/sync_version.sh`) syncs `__version__` to `spatelier/__init__.py` and `__init__.py`. Release script verifies version is synced before tagging; prints Docker buildx command to push versioned and latest tags.
+
+### Changed
+- **Single-package layout:** All application code now lives under `spatelier/` (cli, core, database, domain, infrastructure, modules, analytics, utils). One installable package; setuptools `include = ["spatelier*"]` only. Eliminates risk of missing packages in the installed manifest; faster startup (no alias imports at load).
+- **Alembic migrations:** Idempotent for SQLite. Initial migration uses `batch_alter_table` and conditional index drop/create so it runs after `Base.metadata.create_all()`. File-tracking and transcription migrations only add/create when columns/tables don't exist. SQLite transcription integration tests no longer skipped.
+- **NAS integration tests:** Skip only when no writable root exists (same logic as `get_nas_path_root`: /Volumes/NAS, home, or tmp). Tests run on typical dev machines without a NAS volume.
+
+### Fixed
+- (None; 0.4.2 is primarily layout, Docker, and tooling.)
+
 ## [0.4.1] - (release date TBD)
 
 ### Fixed
