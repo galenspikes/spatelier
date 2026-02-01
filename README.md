@@ -122,6 +122,8 @@ Download the latest release from [GitHub Releases](https://github.com/galenspike
 
 If you're having issues with installation, see [GLOBAL_INSTALL.md](GLOBAL_INSTALL.md) for global installation options.
 
+**Homebrew:** When installing or upgrading with `brew install` or `brew upgrade spatelier`, you may see a warning about "Failed to fix install linkage" or "Updated load commands do not fit in the header" for the `av` library. This is a known issue with pre-built dylibs in that dependency; the install is still valid and spatelier works normally. You can ignore the warning.
+
 ## Usage
 
 ```bash

@@ -8,7 +8,8 @@ class Spatelier < Formula
   license "MIT"
   head "https://github.com/galenspikes/spatelier.git", branch: "main"
 
-  # Skip relinking libexec; av/faster-whisper dylibs have paths that don't fit in Mach-O header
+  # skip_clean does not prevent "fix install linkage"; av's pre-built dylibs have header space
+  # too small for Homebrew's path rewrite. Install still works; ignore the linkage warning.
   skip_clean "libexec"
 
   depends_on "python@3.12"
