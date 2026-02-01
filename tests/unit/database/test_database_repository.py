@@ -10,7 +10,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from database.models import (
+from spatelier.database.models import (
     AnalyticsEvent,
     Base,
     MediaFile,
@@ -18,7 +18,7 @@ from database.models import (
     ProcessingJob,
     ProcessingStatus,
 )
-from database.repository import (
+from spatelier.database.repository import (
     AnalyticsRepository,
     MediaFileRepository,
     ProcessingJobRepository,

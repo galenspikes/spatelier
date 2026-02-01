@@ -13,7 +13,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from utils.helpers import get_file_hash, get_file_size, get_file_type
+from spatelier.utils.helpers import get_file_hash, get_file_size, get_file_type
 
 
 @pytest.fixture

@@ -10,9 +10,9 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from core.config import Config
-from database.connection import DatabaseConfig, DatabaseManager
-from database.models import Base
+from spatelier.core.config import Config
+from spatelier.database.connection import DatabaseConfig, DatabaseManager
+from spatelier.database.models import Base
 
 
 def test_database_manager_initialization():

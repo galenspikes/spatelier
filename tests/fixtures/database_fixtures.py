@@ -13,9 +13,9 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from core.config import Config
-from database.connection import DatabaseManager
-from database.models import (
+from spatelier.core.config import Config
+from spatelier.database.connection import DatabaseManager
+from spatelier.database.models import (
     AnalyticsEvent,
     Base,
     MediaFile,
@@ -23,7 +23,7 @@ from database.models import (
     PlaylistVideo,
     ProcessingJob,
 )
-from database.repository import (
+from spatelier.database.repository import (
     AnalyticsRepository,
     MediaFileRepository,
     PlaylistRepository,

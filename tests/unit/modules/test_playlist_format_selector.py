@@ -6,8 +6,8 @@ Tests issue #8: Fix playlist format selector for non-numeric quality values.
 
 import pytest
 
-from core.config import Config
-from modules.video.services.playlist_service import PlaylistService
+from spatelier.core.config import Config
+from spatelier.modules.video.services.playlist_service import PlaylistService
 
 
 @pytest.fixture

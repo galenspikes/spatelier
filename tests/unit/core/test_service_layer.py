@@ -9,9 +9,9 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from core.config import Config
-from core.database_service import DatabaseServiceFactory, RepositoryContainer
-from core.interfaces import (
+from spatelier.core.config import Config
+from spatelier.core.database_service import DatabaseServiceFactory, RepositoryContainer
+from spatelier.core.interfaces import (
     IDatabaseService,
     IMetadataService,
     IPlaylistService,
@@ -19,7 +19,7 @@ from core.interfaces import (
     ITranscriptionService,
     IVideoDownloadService,
 )
-from core.service_factory import ServiceFactory
+from spatelier.core.service_factory import ServiceFactory
 
 
 class TestServiceFactory:
@@ -38,7 +38,7 @@ class TestServiceFactory:
         config = Config()
         factory = ServiceFactory(config, verbose=False)
 
-        with patch("core.service_factory.DatabaseServiceFactory") as mock_db_factory:
+        with patch("spatelier.core.service_factory.DatabaseServiceFactory") as mock_db_factory:
             mock_instance = Mock(spec=IDatabaseService)
             mock_db_factory.return_value = mock_instance
 
@@ -51,7 +51,7 @@ class TestServiceFactory:
         config = Config()
         factory = ServiceFactory(config, verbose=False)
 
-        with patch("modules.video.services.VideoDownloadService") as mock_service:
+        with patch("spatelier.modules.video.services.VideoDownloadService") as mock_service:
             with patch.object(factory, "create_database_service", return_value=Mock()):
                 mock_instance = Mock(spec=IVideoDownloadService)
                 mock_service.return_value = mock_instance
@@ -66,7 +66,7 @@ class TestServiceFactory:
         config = Config()
         factory = ServiceFactory(config, verbose=False)
 
-        with patch("modules.video.services.MetadataService") as mock_service:
+        with patch("spatelier.modules.video.services.MetadataService") as mock_service:
             with patch.object(factory, "create_database_service", return_value=Mock()):
                 mock_instance = Mock(spec=IMetadataService)
                 mock_service.return_value = mock_instance
@@ -82,7 +82,7 @@ class TestServiceFactory:
         factory = ServiceFactory(config, verbose=False)
 
         with patch(
-            "modules.video.services.transcription_service.TranscriptionService"
+            "spatelier.modules.video.services.transcription_service.TranscriptionService"
         ) as mock_service:
             with patch.object(factory, "create_database_service", return_value=Mock()):
                 mock_instance = Mock(spec=ITranscriptionService)
@@ -98,7 +98,7 @@ class TestServiceFactory:
         config = Config()
         factory = ServiceFactory(config, verbose=False)
 
-        with patch("modules.video.services.PlaylistService") as mock_service:
+        with patch("spatelier.modules.video.services.PlaylistService") as mock_service:
             with patch.object(factory, "create_database_service", return_value=Mock()):
                 mock_instance = Mock(spec=IPlaylistService)
                 mock_service.return_value = mock_instance
@@ -206,7 +206,7 @@ class TestServiceFactory:
         config = Config()
         factory = ServiceFactory(config, verbose=False)
 
-        with patch("core.job_queue.JobQueue") as mock_job_queue:
+        with patch("spatelier.core.job_queue.JobQueue") as mock_job_queue:
             mock_instance = Mock()
             mock_job_queue.return_value = mock_instance
 

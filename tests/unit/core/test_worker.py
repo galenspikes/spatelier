@@ -13,9 +13,9 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from core.config import Config
-from core.job_queue import Job, JobStatus, JobType
-from core.worker import (
+from spatelier.core.config import Config
+from spatelier.core.job_queue import Job, JobStatus, JobType
+from spatelier.core.worker import (
     Worker,
     WorkerMode,
     create_download_processor,

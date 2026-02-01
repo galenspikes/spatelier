@@ -13,8 +13,8 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from core.config import Config
-from core.package_updater import PackageUpdater
+from spatelier.core.config import Config
+from spatelier.core.package_updater import PackageUpdater
 
 
 @pytest.fixture

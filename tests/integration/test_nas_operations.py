@@ -14,8 +14,8 @@ from unittest.mock import patch
 
 import pytest
 
-from core.config import Config
-from modules.video.services.download_service import VideoDownloadService
+from spatelier.core.config import Config
+from spatelier.modules.video.services.download_service import VideoDownloadService
 from tests.fixtures.nas_fixtures import get_nas_tests_path
 
 

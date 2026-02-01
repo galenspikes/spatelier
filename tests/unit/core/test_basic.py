@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from core.config import AudioConfig, Config, VideoConfig
-from core.logger import get_logger
+from spatelier.core.config import AudioConfig, Config, VideoConfig
+from spatelier.core.logger import get_logger
 
 
 def test_config_creation():
@@ -43,45 +43,35 @@ def test_logger_creation():
 
 
 def test_project_structure():
-    """Test that the project structure is correct."""
-    # Check that main modules exist
-    assert Path("__init__.py").exists()
-    assert Path("cli/__init__.py").exists()
-    assert Path("core/__init__.py").exists()
-    assert Path("modules/__init__.py").exists()
-    assert Path("utils/__init__.py").exists()
+    """Test that the project structure is correct (single package under spatelier/)."""
+    root = Path(__file__).resolve().parent.parent.parent.parent
+    # Single installable package
+    assert (root / "spatelier/__init__.py").exists()
+    assert (root / "spatelier/cli/__init__.py").exists()
+    assert (root / "spatelier/core/__init__.py").exists()
+    assert (root / "spatelier/modules/__init__.py").exists()
+    assert (root / "spatelier/utils/__init__.py").exists()
 
-    # Check that CLI modules exist
-    assert Path("cli/app.py").exists()
-    assert Path("cli/video.py").exists()
-    assert Path("cli/audio.py").exists()
-    assert Path("cli/cli_utils.py").exists()
+    assert (root / "spatelier/cli/app.py").exists()
+    assert (root / "spatelier/cli/video.py").exists()
+    assert (root / "spatelier/cli/audio.py").exists()
+    assert (root / "spatelier/cli/cli_utils.py").exists()
 
-    # Check that core modules exist
-    assert Path("core/config.py").exists()
-    assert Path("core/logger.py").exists()
-    assert Path("core/base.py").exists()
+    assert (root / "spatelier/core/config.py").exists()
+    assert (root / "spatelier/core/logger.py").exists()
+    assert (root / "spatelier/core/base.py").exists()
 
-    # Check that utility modules exist
-    assert Path("utils/helpers.py").exists()
+    assert (root / "spatelier/utils/helpers.py").exists()
 
 
 def test_imports():
     """Test that all modules can be imported."""
-    # Test main imports
-    # Test CLI imports
-    from cli import app, audio, cli_utils, video
-
-    # Test core imports
-    from core import base, config, logger
-    from core.config import Config
-    from core.logger import get_logger
-
-    # Test module imports
-    from modules.video import VideoConverter, VideoDownloadService
-
-    # Test utility imports
-    from utils import helpers
+    from spatelier.cli import app, audio, cli_utils, video
+    from spatelier.core import base, config, logger
+    from spatelier.core.config import Config
+    from spatelier.core.logger import get_logger
+    from spatelier.modules.video import VideoConverter, VideoDownloadService
+    from spatelier.utils import helpers
 
 
 def test_config_validation():
@@ -99,7 +89,7 @@ def test_config_validation():
 
 def test_helpers():
     """Test utility helper functions."""
-    from utils.helpers import format_file_size, safe_filename
+    from spatelier.utils.helpers import format_file_size, safe_filename
 
     # Test safe filename
     assert safe_filename("test<file>.mp4") == "test_file_.mp4"

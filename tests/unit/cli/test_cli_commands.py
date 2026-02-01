@@ -10,11 +10,11 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 from typer.testing import CliRunner
 
-from cli.app import app
-from cli.audio import app as audio_app
-from cli.cli_analytics import app as analytics_app
-from cli.cli_utils import app as utils_app
-from cli.video import app as video_app
+from spatelier.cli.app import app
+from spatelier.cli.audio import app as audio_app
+from spatelier.cli.cli_analytics import app as analytics_app
+from spatelier.cli.cli_utils import app as utils_app
+from spatelier.cli.video import app as video_app
 
 
 @pytest.fixture
@@ -41,7 +41,7 @@ def test_main_cli_app_version(cli_runner):
     assert "Spatelier version" in result.output
 
 
-@patch("core.service_factory.ServiceFactory")
+@patch("spatelier.core.service_factory.ServiceFactory")
 def test_video_download_command(mock_service_factory_class, cli_runner):
     """Test video download command."""
     # Mock service container
@@ -73,7 +73,7 @@ def test_video_download_command(mock_service_factory_class, cli_runner):
     mock_use_case.execute.assert_called_once()
 
 
-@patch("core.service_factory.ServiceFactory")
+@patch("spatelier.core.service_factory.ServiceFactory")
 def test_video_download_command_failure(mock_service_factory_class, cli_runner):
     """Test video download command failure."""
     # Mock service container with failure
@@ -95,7 +95,7 @@ def test_video_download_command_failure(mock_service_factory_class, cli_runner):
     # Note: Exit code might be 0 due to error handler, but error message should be present
 
 
-@patch("modules.video.converter.VideoConverter")
+@patch("spatelier.modules.video.converter.VideoConverter")
 def test_video_convert_command(mock_converter_class, cli_runner):
     """Test video convert command."""
     # Mock converter
@@ -151,7 +151,7 @@ def test_video_info_command_file_not_found(cli_runner):
     assert "File not found" in result.output
 
 
-@patch("modules.audio.converter.AudioConverter.get_audio_info")
+@patch("spatelier.modules.audio.converter.AudioConverter.get_audio_info")
 def test_audio_info_command(mock_get_audio_info, cli_runner):
     """Test audio info command."""
     # Create a temporary test file
@@ -264,7 +264,7 @@ def test_utils_config_show_command(cli_runner):
     assert "Current Configuration" in result.output
 
 
-@patch("analytics.reporter.AnalyticsReporter")
+@patch("spatelier.analytics.reporter.AnalyticsReporter")
 def test_analytics_report_command(mock_reporter_class, cli_runner):
     """Test analytics report command."""
     # Mock reporter
@@ -290,7 +290,7 @@ def test_analytics_report_command(mock_reporter_class, cli_runner):
     mock_reporter.generate_usage_report.assert_called_once_with(30)
 
 
-@patch("cli.cli_analytics.AnalyticsReporter")
+@patch("spatelier.cli.cli_analytics.AnalyticsReporter")
 def test_analytics_stats_command(mock_reporter_class, cli_runner):
     """Test analytics stats command."""
     # Mock reporter
@@ -321,7 +321,7 @@ def test_analytics_stats_command(mock_reporter_class, cli_runner):
     assert "Total Jobs" in result.output
 
 
-@patch("cli.cli_analytics.AnalyticsReporter")
+@patch("spatelier.cli.cli_analytics.AnalyticsReporter")
 def test_analytics_visualize_command(mock_reporter_class, cli_runner):
     """Test analytics visualize command."""
     # Mock reporter
@@ -341,7 +341,7 @@ def test_analytics_visualize_command(mock_reporter_class, cli_runner):
     mock_reporter.create_visualizations.assert_called_once_with(Path("/tmp/output"), 30)
 
 
-@patch("cli.cli_analytics.AnalyticsReporter")
+@patch("spatelier.cli.cli_analytics.AnalyticsReporter")
 def test_analytics_export_command(mock_reporter_class, cli_runner):
     """Test analytics export command."""
     # Mock reporter

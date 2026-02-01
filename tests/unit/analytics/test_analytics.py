@@ -11,9 +11,9 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from analytics.reporter import AnalyticsReporter
-from core.config import Config
-from database.models import (
+from spatelier.analytics.reporter import AnalyticsReporter
+from spatelier.core.config import Config
+from spatelier.database.models import (
     AnalyticsEvent,
     MediaFile,
     MediaType,

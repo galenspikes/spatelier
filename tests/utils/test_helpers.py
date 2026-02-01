@@ -189,7 +189,7 @@ def create_mock_directory_structure(
 def mock_database_operations():
     """Mock database operations for testing."""
     return patch.multiple(
-        "database.connection.DatabaseManager",
+        "spatelier.database.connection.DatabaseManager",
         connect_sqlite=Mock(),
         connect_mongodb=Mock(),
         get_sqlite_session=Mock(),

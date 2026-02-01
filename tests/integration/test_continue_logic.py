@@ -7,9 +7,9 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from core.config import Config
-from database.models import MediaFile, MediaType, Playlist, PlaylistVideo
-from modules.video.services.download_service import VideoDownloadService
+from spatelier.core.config import Config
+from spatelier.database.models import MediaFile, MediaType, Playlist, PlaylistVideo
+from spatelier.modules.video.services.download_service import VideoDownloadService
 
 
 class TestContinueLogic:
@@ -19,7 +19,7 @@ class TestContinueLogic:
         """Test playlist progress tracking."""
         # Mock the entire VideoDownloadService to avoid configuration issues
         with patch(
-            "modules.video.services.download_service.VideoDownloadService"
+            "spatelier.modules.video.services.download_service.VideoDownloadService"
         ) as mock_service_class:
             mock_downloader = Mock()
             mock_downloader._get_playlist_progress.return_value = {
@@ -42,7 +42,7 @@ class TestContinueLogic:
         """Test video transcription status checking."""
         # Mock the entire VideoDownloadService to avoid configuration issues
         with patch(
-            "modules.video.services.download_service.VideoDownloadService"
+            "spatelier.modules.video.services.download_service.VideoDownloadService"
         ) as mock_service_class:
             mock_downloader = Mock()
             mock_downloader._check_video_has_transcription.return_value = True
@@ -56,7 +56,7 @@ class TestContinueLogic:
         """Test getting failed videos from playlist."""
         # Mock the entire VideoDownloadService to avoid configuration issues
         with patch(
-            "modules.video.services.download_service.VideoDownloadService"
+            "spatelier.modules.video.services.download_service.VideoDownloadService"
         ) as mock_service_class:
             mock_downloader = Mock()
             mock_downloader._get_failed_videos.return_value = [
@@ -76,7 +76,7 @@ class TestContinueLogic:
         """Test skipping already completed videos."""
         # Mock the entire VideoDownloadService to avoid configuration issues
         with patch(
-            "modules.video.services.download_service.VideoDownloadService"
+            "spatelier.modules.video.services.download_service.VideoDownloadService"
         ) as mock_service_class:
             mock_downloader = Mock()
             mock_downloader._should_skip_video.return_value = {
@@ -99,7 +99,7 @@ class TestContinueLogic:
         """Test not skipping videos without transcription."""
         # Mock the entire VideoDownloadService to avoid configuration issues
         with patch(
-            "modules.video.services.download_service.VideoDownloadService"
+            "spatelier.modules.video.services.download_service.VideoDownloadService"
         ) as mock_service_class:
             mock_downloader = Mock()
             mock_downloader._should_skip_video.return_value = {
@@ -122,7 +122,7 @@ class TestContinueLogic:
         """Test not skipping videos with missing files."""
         # Mock the entire VideoDownloadService to avoid configuration issues
         with patch(
-            "modules.video.services.download_service.VideoDownloadService"
+            "spatelier.modules.video.services.download_service.VideoDownloadService"
         ) as mock_service_class:
             mock_downloader = Mock()
             mock_downloader._should_skip_video.return_value = {
@@ -145,7 +145,7 @@ class TestContinueLogic:
         """Test continue download progress logging."""
         # Mock the entire VideoDownloadService to avoid configuration issues
         with patch(
-            "modules.video.services.download_service.VideoDownloadService"
+            "spatelier.modules.video.services.download_service.VideoDownloadService"
         ) as mock_service_class:
             mock_downloader = Mock()
             mock_downloader._get_playlist_progress.return_value = {
@@ -172,7 +172,7 @@ class TestContinueLogic:
         """Test that continue_download defaults to True."""
         # Mock the entire VideoDownloadService to avoid configuration issues
         with patch(
-            "modules.video.services.download_service.VideoDownloadService"
+            "spatelier.modules.video.services.download_service.VideoDownloadService"
         ) as mock_service_class:
             mock_downloader = Mock()
 

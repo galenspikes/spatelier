@@ -10,8 +10,8 @@ from unittest.mock import Mock, MagicMock
 
 import pytest
 
-from core.config import Config
-from modules.video.services.download_service import VideoDownloadService
+from spatelier.core.config import Config
+from spatelier.modules.video.services.download_service import VideoDownloadService
 
 
 @pytest.fixture

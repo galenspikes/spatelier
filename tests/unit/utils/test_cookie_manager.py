@@ -12,7 +12,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from utils.cookie_manager import CookieManager
+from spatelier.utils.cookie_manager import CookieManager
 
 
 @pytest.fixture

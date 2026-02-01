@@ -10,10 +10,10 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from core.config import Config
-from database.connection import DatabaseManager
-from database.models import MediaFile, MediaType, ProcessingJob, ProcessingStatus
-from database.repository import ProcessingJobRepository
+from spatelier.core.config import Config
+from spatelier.database.connection import DatabaseManager
+from spatelier.database.models import MediaFile, MediaType, ProcessingJob, ProcessingStatus
+from spatelier.database.repository import ProcessingJobRepository
 
 
 class TestJobTiming:

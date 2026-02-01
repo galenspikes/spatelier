@@ -14,8 +14,8 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from core.config import Config
-from modules.video.services.download_service import VideoDownloadService
+from spatelier.core.config import Config
+from spatelier.modules.video.services.download_service import VideoDownloadService
 
 
 class TestSmartOverwrite:
@@ -29,7 +29,7 @@ class TestSmartOverwrite:
     @pytest.fixture
     def downloader(self, config):
         """Create video downloader for testing."""
-        with patch("core.database_service.DatabaseServiceFactory") as mock_db_factory:
+        with patch("spatelier.core.database_service.DatabaseServiceFactory") as mock_db_factory:
             mock_db_service = Mock()
             mock_repos = Mock()
             mock_repos.media = Mock()
@@ -75,7 +75,7 @@ class TestSmartOverwrite:
         """Test checking existing video file without subtitles."""
         # Mock TranscriptionService.has_whisper_subtitles
         with patch(
-            "modules.video.services.transcription_service.TranscriptionService"
+            "spatelier.modules.video.services.transcription_service.TranscriptionService"
         ) as mock_transcription_service_class:
             mock_transcription_service = mock_transcription_service_class.return_value
             mock_transcription_service.has_whisper_subtitles.return_value = False
@@ -95,7 +95,7 @@ class TestSmartOverwrite:
         """Test checking existing video file with subtitles."""
         # Mock TranscriptionService.has_whisper_subtitles
         with patch(
-            "modules.video.services.transcription_service.TranscriptionService"
+            "spatelier.modules.video.services.transcription_service.TranscriptionService"
         ) as mock_transcription_service_class:
             mock_transcription_service = mock_transcription_service_class.return_value
             mock_transcription_service.has_whisper_subtitles.return_value = True
@@ -112,8 +112,8 @@ class TestSmartOverwrite:
     def test_has_whisper_subtitles_success(self, downloader, sample_video_file):
         """Test successful subtitle detection."""
         # Test TranscriptionService.has_whisper_subtitles directly
-        from modules.video.services.transcription_service import TranscriptionService
-        from core.config import Config
+        from spatelier.modules.video.services.transcription_service import TranscriptionService
+        from spatelier.core.config import Config
 
         config = Config()
         transcription_service = TranscriptionService(config, verbose=False)
@@ -141,8 +141,8 @@ class TestSmartOverwrite:
     def test_has_whisper_subtitles_no_subtitles(self, downloader, sample_video_file):
         """Test subtitle detection when no subtitles exist."""
         # Test TranscriptionService.has_whisper_subtitles directly
-        from modules.video.services.transcription_service import TranscriptionService
-        from core.config import Config
+        from spatelier.modules.video.services.transcription_service import TranscriptionService
+        from spatelier.core.config import Config
 
         config = Config()
         transcription_service = TranscriptionService(config, verbose=False)
@@ -160,8 +160,8 @@ class TestSmartOverwrite:
 
     def test_has_whisper_subtitles_ffprobe_failure(self, downloader, sample_video_file):
         """Test subtitle detection when ffprobe fails."""
-        from modules.video.services.transcription_service import TranscriptionService
-        from core.config import Config
+        from spatelier.modules.video.services.transcription_service import TranscriptionService
+        from spatelier.core.config import Config
 
         config = Config()
         transcription_service = TranscriptionService(config, verbose=False)
@@ -176,8 +176,8 @@ class TestSmartOverwrite:
 
     def test_has_whisper_subtitles_timeout(self, downloader, sample_video_file):
         """Test subtitle detection when ffprobe times out."""
-        from modules.video.services.transcription_service import TranscriptionService
-        from core.config import Config
+        from spatelier.modules.video.services.transcription_service import TranscriptionService
+        from spatelier.core.config import Config
 
         config = Config()
         transcription_service = TranscriptionService(config, verbose=False)
@@ -193,8 +193,8 @@ class TestSmartOverwrite:
         self, downloader, sample_video_file
     ):
         """Test subtitle detection with WhisperAI in title."""
-        from modules.video.services.transcription_service import TranscriptionService
-        from core.config import Config
+        from spatelier.modules.video.services.transcription_service import TranscriptionService
+        from spatelier.core.config import Config
 
         config = Config()
         transcription_service = TranscriptionService(config, verbose=False)
@@ -222,8 +222,8 @@ class TestSmartOverwrite:
         self, downloader, sample_video_file
     ):
         """Test subtitle detection with WhisperAI in title (case insensitive)."""
-        from modules.video.services.transcription_service import TranscriptionService
-        from core.config import Config
+        from spatelier.modules.video.services.transcription_service import TranscriptionService
+        from spatelier.core.config import Config
 
         config = Config()
         transcription_service = TranscriptionService(config, verbose=False)
@@ -249,8 +249,8 @@ class TestSmartOverwrite:
 
     def test_has_whisper_subtitles_other_subtitles(self, downloader, sample_video_file):
         """Test subtitle detection with non-WhisperAI subtitles."""
-        from modules.video.services.transcription_service import TranscriptionService
-        from core.config import Config
+        from spatelier.modules.video.services.transcription_service import TranscriptionService
+        from spatelier.core.config import Config
 
         config = Config()
         transcription_service = TranscriptionService(config, verbose=False)
@@ -277,8 +277,8 @@ class TestSmartOverwrite:
 
     def test_has_whisper_subtitles_no_title_tag(self, downloader, sample_video_file):
         """Test subtitle detection with subtitles but no title tag."""
-        from modules.video.services.transcription_service import TranscriptionService
-        from core.config import Config
+        from spatelier.modules.video.services.transcription_service import TranscriptionService
+        from spatelier.core.config import Config
 
         config = Config()
         transcription_service = TranscriptionService(config, verbose=False)
@@ -301,8 +301,8 @@ class TestSmartOverwrite:
 
     def test_has_whisper_subtitles_invalid_json(self, downloader, sample_video_file):
         """Test subtitle detection with invalid JSON from ffprobe."""
-        from modules.video.services.transcription_service import TranscriptionService
-        from core.config import Config
+        from spatelier.modules.video.services.transcription_service import TranscriptionService
+        from spatelier.core.config import Config
 
         config = Config()
         transcription_service = TranscriptionService(config, verbose=False)
@@ -319,8 +319,8 @@ class TestSmartOverwrite:
         self, downloader, sample_video_file
     ):
         """Test subtitle detection with exception handling."""
-        from modules.video.services.transcription_service import TranscriptionService
-        from core.config import Config
+        from spatelier.modules.video.services.transcription_service import TranscriptionService
+        from spatelier.core.config import Config
 
         config = Config()
         transcription_service = TranscriptionService(config, verbose=False)
@@ -343,7 +343,7 @@ class TestSmartOverwrite:
 
         # Test case 2: File exists without subtitles - should overwrite
         with patch(
-            "modules.video.services.transcription_service.TranscriptionService"
+            "spatelier.modules.video.services.transcription_service.TranscriptionService"
         ) as mock_transcription_service_class:
             mock_transcription_service = mock_transcription_service_class.return_value
             mock_transcription_service.has_whisper_subtitles.return_value = False
@@ -355,7 +355,7 @@ class TestSmartOverwrite:
 
         # Test case 3: File exists with subtitles - should not overwrite
         with patch(
-            "modules.video.services.transcription_service.TranscriptionService"
+            "spatelier.modules.video.services.transcription_service.TranscriptionService"
         ) as mock_transcription_service_class:
             mock_transcription_service = mock_transcription_service_class.return_value
             mock_transcription_service.has_whisper_subtitles.return_value = True
