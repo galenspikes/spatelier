@@ -1,8 +1,23 @@
 #!/bin/bash
 # Release script for Spatelier
 # Automates the release process including Homebrew formula updates
+#
+# Usage:
+#   ./scripts/release.sh              # Full release (no tests by default)
+#   ./scripts/release.sh --with-tests # Run pytest before release, then release
+#   ./scripts/release.sh --dry-run    # Checks only; no tag/push/formula (optional: --with-tests)
 
 set -e
+
+# Parse flags before we change directory
+DRY_RUN=""
+RUN_TESTS=""
+for arg in "$@"; do
+    case "$arg" in
+        --dry-run|-n)    DRY_RUN=1 ;;
+        --with-tests|-t) RUN_TESTS=1 ;;
+    esac
+done
 
 # Colors for output
 RED='\033[0;31m'
@@ -47,9 +62,16 @@ log_plain "Release Process Started: $(date)"
 log_plain "Version: ${TAG}"
 log_plain "Branch: $(git branch --show-current)"
 log_plain "Commit: $(git rev-parse HEAD)"
+if [ -n "$DRY_RUN" ]; then
+    log_plain "Mode: DRY RUN (no tag, push, or formula update)"
+fi
 log_plain "=========================================="
 log_and_echo ""
-log_and_echo -e "${GREEN}🚀 Starting release process for ${TAG}${NC}"
+if [ -n "$DRY_RUN" ]; then
+    log_and_echo -e "${YELLOW}🔍 DRY RUN: Release process for ${TAG} (checks and tests only)${NC}"
+else
+    log_and_echo -e "${GREEN}🚀 Starting release process for ${TAG}${NC}"
+fi
 log_and_echo -e "${GREEN}📝 Logging to: ${LOG_FILE}${NC}"
 log_and_echo ""
 
@@ -94,49 +116,61 @@ if ! grep -q "## \[${VERSION}\]" CHANGELOG.md; then
     fi
 fi
 
-# Run tests
-log_and_echo -e "${GREEN}🧪 Running tests...${NC}"
-log_plain "Running pytest..."
+# Run tests only if --with-tests / -t was passed
+if [ -n "$RUN_TESTS" ]; then
+    log_and_echo -e "${GREEN}🧪 Running tests...${NC}"
+    log_plain "Running pytest..."
 
-# Try to use venv pytest first, then fall back to system pytest
-PYTEST_CMD=""
-if [ -f "venv/bin/pytest" ]; then
-    PYTEST_CMD="venv/bin/pytest"
-    log_plain "Using venv pytest: $PYTEST_CMD"
-elif [ -n "$VIRTUAL_ENV" ] && command -v pytest &> /dev/null; then
-    PYTEST_CMD="pytest"
-    log_plain "Using pytest from active venv: $VIRTUAL_ENV"
-elif command -v pytest &> /dev/null; then
-    PYTEST_CMD="pytest"
-    log_plain "Using system pytest (WARNING: may not have all dependencies)"
+    # Try to use venv pytest first, then fall back to system pytest
+    PYTEST_CMD=""
+    if [ -f "venv/bin/pytest" ]; then
+        PYTEST_CMD="venv/bin/pytest"
+        log_plain "Using venv pytest: $PYTEST_CMD"
+    elif [ -n "$VIRTUAL_ENV" ] && command -v pytest &> /dev/null; then
+        PYTEST_CMD="pytest"
+        log_plain "Using pytest from active venv: $VIRTUAL_ENV"
+    elif command -v pytest &> /dev/null; then
+        PYTEST_CMD="pytest"
+        log_plain "Using system pytest (WARNING: may not have all dependencies)"
+    else
+        log_and_echo -e "${RED}Error: --with-tests passed but pytest not found${NC}"
+        log_plain "ERROR: pytest not found"
+        exit 1
+    fi
+
+    if [ -n "$PYTEST_CMD" ]; then
+        $PYTEST_CMD 2>&1 | tee -a "$LOG_FILE"
+        TEST_EXIT_CODE=${PIPESTATUS[0]}
+        if [ $TEST_EXIT_CODE -ne 0 ]; then
+            log_and_echo -e "${RED}Error: Tests failed. Fix tests before releasing.${NC}"
+            log_plain "ERROR: Tests failed with exit code $TEST_EXIT_CODE"
+            exit 1
+        fi
+        log_and_echo -e "${GREEN}✅ All tests passed${NC}"
+        log_plain "SUCCESS: All tests passed"
+    fi
 else
-    log_and_echo -e "${YELLOW}Warning: pytest not found. Skipping tests.${NC}"
-    log_plain "WARNING: pytest not found"
-    log_and_echo "   Make sure tests pass before releasing!"
-    read -p "Continue anyway? (y/N) " -n 1 -r
-    echo
-    log_plain "User response: $REPLY"
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        exit 1
-    fi
-fi
-
-if [ -n "$PYTEST_CMD" ]; then
-    $PYTEST_CMD 2>&1 | tee -a "$LOG_FILE"
-    TEST_EXIT_CODE=${PIPESTATUS[0]}
-    if [ $TEST_EXIT_CODE -ne 0 ]; then
-        log_and_echo -e "${RED}Error: Tests failed. Fix tests before releasing.${NC}"
-        log_plain "ERROR: Tests failed with exit code $TEST_EXIT_CODE"
-        exit 1
-    fi
-    log_and_echo -e "${GREEN}✅ All tests passed${NC}"
-    log_plain "SUCCESS: All tests passed"
+    log_and_echo -e "${YELLOW}⏭️  Skipping tests (use --with-tests to run pytest before release)${NC}"
+    log_plain "Tests skipped (not requested)"
 fi
 
 log_and_echo ""
 log_and_echo -e "${GREEN}✅ Pre-release checks passed${NC}"
 log_plain "SUCCESS: Pre-release checks passed"
 log_and_echo ""
+
+# Dry run: stop here and report what would happen
+if [ -n "$DRY_RUN" ]; then
+    log_and_echo -e "${GREEN}✅ Dry run complete. No tag created, nothing pushed.${NC}"
+    log_plain "DRY RUN: Would have created tag ${TAG}, pushed to origin, updated Formula/spatelier.rb, committed and pushed."
+    log_plain "=========================================="
+    log_plain "Dry Run Completed: $(date)"
+    log_plain "=========================================="
+    log_and_echo ""
+    log_and_echo -e "${GREEN}📝 Full log saved to: ${LOG_FILE}${NC}"
+    exit 0
+fi
+
 # Create and push tag FIRST, then download actual tarball from GitHub
 log_and_echo -e "${GREEN}📝 Creating tag ${TAG}...${NC}"
 log_plain "Creating git tag: ${TAG}"
