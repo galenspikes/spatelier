@@ -23,6 +23,7 @@ app = typer.Typer(
     name="video",
     help="Video processing commands",
     rich_markup_mode="rich",
+    add_completion=False,
 )
 
 console = Console()
@@ -175,7 +176,7 @@ def download(
                         else:
                             console.print(
                                 Panel(
-                                    f"[yellow]![/yellow] Transcription failed: {video_file.name}",
+                                    f"[yellow]![/yellow] Transcription or subtitle embedding failed: {video_file.name}",
                                     title="Warning",
                                     border_style="yellow",
                                 )
@@ -235,7 +236,7 @@ def download(
                     if not transcribe_ok:
                         console.print(
                             Panel(
-                                "[yellow]![/yellow] Transcription failed. The original file is kept.\n"
+                                "[yellow]![/yellow] Transcription or subtitle embedding failed. The original file is kept.\n"
                                 'Retry: spatelier video embed-subtitles "<path>" --transcription-model small',
                                 title="Warning",
                                 border_style="yellow",
@@ -305,7 +306,7 @@ def embed_subtitles(
         console.print(
             Panel(
                 f"[red]✗[/red] Video file not found: {video_file}",
-                title="Error",
+                title="File Not Found",
                 border_style="red",
             )
         )
@@ -340,7 +341,7 @@ def embed_subtitles(
             console.print(
                 Panel(
                     f"[red]✗[/red] Failed to embed subtitles into video",
-                    title="Error",
+                    title="Subtitle Embedding Failed",
                     border_style="red",
                 )
             )
@@ -400,7 +401,7 @@ def extract_audio_from_url(
             console.print(
                 Panel(
                     f"[red]✗[/red] Audio extraction failed: {result.message}",
-                    title="Error",
+                    title="Audio Extraction Failed",
                     border_style="red",
                 )
             )
@@ -410,7 +411,7 @@ def extract_audio_from_url(
         console.print(
             Panel(
                 f"[red]✗[/red] Audio extraction failed: {str(e)}",
-                title="Error",
+                title="Audio Extraction Failed",
                 border_style="red",
             )
         )
@@ -454,7 +455,7 @@ def convert(
         console.print(
             Panel(
                 f"[red]✗[/red] Conversion failed: {result.message}",
-                title="Error",
+                title="Conversion Failed",
                 border_style="red",
             )
         )
@@ -483,7 +484,7 @@ def info(
         console.print(
             Panel(
                 f"[red]✗[/red] File not found: {file_path}",
-                title="Error",
+                title="File Not Found",
                 border_style="red",
             )
         )

@@ -22,6 +22,7 @@ app = typer.Typer(
     name="utils",
     help="Utility commands",
     rich_markup_mode="rich",
+    add_completion=False,
 )
 
 console = Console()
@@ -46,7 +47,7 @@ def hash(
             console.print(
                 Panel(
                     f"[red]✗[/red] File not found: {file_path}",
-                    title="Error",
+                    title="File Not Found",
                     border_style="red",
                 )
             )
@@ -69,7 +70,7 @@ def hash(
         console.print(
             Panel(
                 f"[red]✗[/red] Hash calculation failed: {str(e)}",
-                title="Error",
+                title="Hash Failed",
                 border_style="red",
             )
         )
@@ -94,7 +95,7 @@ def info(
             console.print(
                 Panel(
                     f"[red]✗[/red] File not found: {file_path}",
-                    title="Error",
+                    title="File Not Found",
                     border_style="red",
                 )
             )
@@ -124,7 +125,7 @@ def info(
         console.print(
             Panel(
                 f"[red]✗[/red] File analysis failed: {str(e)}",
-                title="Error",
+                title="Analysis Failed",
                 border_style="red",
             )
         )
@@ -156,7 +157,7 @@ def find(
             console.print(
                 Panel(
                     f"[red]✗[/red] Directory not found: {directory}",
-                    title="Error",
+                    title="Directory Not Found",
                     border_style="red",
                 )
             )
@@ -201,7 +202,7 @@ def find(
         console.print(
             Panel(
                 f"[red]✗[/red] File search failed: {str(e)}",
-                title="Error",
+                title="Search Failed",
                 border_style="red",
             )
         )

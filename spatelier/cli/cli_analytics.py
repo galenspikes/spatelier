@@ -25,6 +25,7 @@ app = typer.Typer(
     name="analytics",
     help="Analytics and reporting commands",
     rich_markup_mode="rich",
+    add_completion=False,
 )
 
 console = Console()
@@ -120,7 +121,7 @@ def report(
             console.print(
                 Panel(
                     f"[red]✗[/red] Analytics report failed: {str(e)}",
-                    title="Error",
+                    title="Report Failed",
                     border_style="red",
                 )
             )
@@ -180,7 +181,7 @@ def visualize(
         console.print(
             Panel(
                 f"[red]✗[/red] Visualization creation failed: {str(e)}",
-                title="Error",
+                title="Visualization Failed",
                 border_style="red",
             )
         )
@@ -263,7 +264,7 @@ def stats(
         console.print(
             Panel(
                 f"[red]✗[/red] Stats display failed: {str(e)}",
-                title="Error",
+                title="Stats Failed",
                 border_style="red",
             )
         )
@@ -313,7 +314,7 @@ def export(
         console.print(
             Panel(
                 f"[red]✗[/red] Data export failed: {str(e)}",
-                title="Error",
+                title="Export Failed",
                 border_style="red",
             )
         )

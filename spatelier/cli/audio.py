@@ -24,6 +24,7 @@ app = typer.Typer(
     name="audio",
     help="Audio processing commands",
     rich_markup_mode="rich",
+    add_completion=False,
 )
 
 console = Console()

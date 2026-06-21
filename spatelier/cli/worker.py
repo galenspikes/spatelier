@@ -24,6 +24,7 @@ app = typer.Typer(
     name="worker",
     help="Background job worker daemon management",
     rich_markup_mode="rich",
+    add_completion=False,
 )
 
 console = Console()
@@ -434,7 +435,7 @@ def list_jobs(
     except Exception as e:
         logger.error(f"Failed to list jobs: {e}")
         console.print(
-            Panel(f"❌ Failed to list jobs: {e}", title="Error", border_style="red")
+            Panel(f"❌ Failed to list jobs: {e}", title="List Failed", border_style="red")
         )
         raise typer.Exit(1)
 
@@ -611,7 +612,7 @@ def check_stuck(
         logger.error(f"Failed to check stuck jobs: {e}")
         console.print(
             Panel(
-                f"❌ Failed to check stuck jobs: {e}", title="Error", border_style="red"
+                f"❌ Failed to check stuck jobs: {e}", title="Check Failed", border_style="red"
             )
         )
         raise typer.Exit(1)

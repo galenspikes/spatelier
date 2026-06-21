@@ -11,6 +11,8 @@ from typing import Optional
 
 from loguru import logger
 
+_current_config: tuple = (None, None, None)
+
 
 def get_logger(
     name: Optional[str] = None,
@@ -30,41 +32,40 @@ def get_logger(
     Returns:
         Configured logger instance
     """
-    # Remove default handler
-    logger.remove()
+    global _current_config
+    config_key = (verbose, level, str(log_file))
+    if config_key != _current_config:
+        _current_config = config_key
 
-    # Set log level — WARNING by default so internal logs don't pollute normal output
-    log_level = "DEBUG" if verbose else "WARNING"
+        logger.remove()
 
-    # Keep SQLAlchemy and other stdlib loggers quiet unless explicitly verbose
-    stdlib_level = logging.DEBUG if verbose else logging.WARNING
-    logging.getLogger("sqlalchemy").setLevel(stdlib_level)
-    logging.getLogger("alembic").setLevel(stdlib_level)
+        log_level = "DEBUG" if verbose else "WARNING"
 
-    # Console handler with colors
-    logger.add(
-        sys.stderr,
-        level=log_level,
-        format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
-        "<level>{level: <8}</level> | "
-        "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
-        "<level>{message}</level>",
-        colorize=True,
-    )
+        stdlib_level = logging.DEBUG if verbose else logging.WARNING
+        logging.getLogger("sqlalchemy").setLevel(stdlib_level)
+        logging.getLogger("alembic").setLevel(stdlib_level)
 
-    # File handler (if specified)
-    if log_file:
-        log_file.parent.mkdir(parents=True, exist_ok=True)
         logger.add(
-            log_file,
+            sys.stderr,
             level=log_level,
-            format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}",
-            rotation="10 MB",
-            retention="30 days",
-            compression="zip",
+            format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
+            "<level>{level: <8}</level> | "
+            "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
+            "<level>{message}</level>",
+            colorize=True,
         )
 
-    # Set the name attribute for compatibility
+        if log_file:
+            log_file.parent.mkdir(parents=True, exist_ok=True)
+            logger.add(
+                log_file,
+                level=log_level,
+                format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}",
+                rotation="10 MB",
+                retention="30 days",
+                compression="zip",
+            )
+
     if name:
         logger.name = name
 

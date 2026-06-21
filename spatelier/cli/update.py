@@ -16,7 +16,7 @@ from spatelier.core.package_updater import PackageUpdater
 from spatelier.core.progress import track_progress
 
 console = Console()
-app = typer.Typer(name="update", help="Package update management")
+app = typer.Typer(name="update", help="Package update management", add_completion=False)
 
 
 @app.command()
@@ -44,7 +44,7 @@ def check(
             console.print(
                 Panel(
                     f"[red]✗[/red] Error checking {package}: {result['error']}",
-                    title="Error",
+                    title="Check Failed",
                     border_style="red",
                 )
             )
@@ -142,7 +142,7 @@ def update(
                 console.print(
                     Panel(
                         f"[red]✗[/red] Error checking {package}: {result['error']}",
-                        title="Error",
+                        title="Check Failed",
                         border_style="red",
                     )
                 )

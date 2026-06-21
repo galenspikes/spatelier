@@ -18,7 +18,7 @@ from spatelier.core.config import Config
 from spatelier.core.file_tracker import FileIdentifier, FileTracker
 
 console = Console()
-app = typer.Typer(name="files", help="File tracking and management")
+app = typer.Typer(name="files", help="File tracking and management", add_completion=False)
 
 
 @app.command()
@@ -43,7 +43,7 @@ def track(
         console.print(
             Panel(
                 f"[red]✗[/red] File not found: {file_path}",
-                title="Error",
+                title="File Not Found",
                 border_style="red",
             )
         )
@@ -72,7 +72,7 @@ def track(
         console.print(
             Panel(
                 f"[red]✗[/red] Failed to get file identifier",
-                title="Error",
+                title="Tracking Failed",
                 border_style="red",
             )
         )
@@ -103,7 +103,7 @@ def find(
         console.print(
             Panel(
                 f"[red]✗[/red] Invalid file identifier format. Use 'device:inode' (e.g., '16777234:19668159')",
-                title="Error",
+                title="Invalid Identifier",
                 border_style="red",
             )
         )
@@ -169,7 +169,7 @@ def duplicates(
         console.print(
             Panel(
                 f"[red]✗[/red] Search path not found: {search_path}",
-                title="Error",
+                title="Path Not Found",
                 border_style="red",
             )
         )

@@ -125,12 +125,8 @@ def main(
 
     A modular, extensible tool library built with modern Python architecture.
     """
-    # Initialize configuration
-    config = Config(config_file=config_file, verbose=verbose)
-
     # Initialize logger
-    logger = get_logger(verbose=verbose)
-    logger.info("Spatelier CLI started")
+    get_logger(verbose=verbose)
 
     # Start automatic background updates (opt-in via auto_update=True)
     # Note: Auto-updates are disabled by default - use explicit update commands
