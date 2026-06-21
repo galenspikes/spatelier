@@ -211,9 +211,15 @@ def find(
 @app.command()
 def config(
     show: bool = typer.Option(False, "--show", "-s", help="Show current configuration"),
-    edit: bool = typer.Option(False, "--edit", "-e", help="Edit configuration file"),
+    edit: bool = typer.Option(False, "--edit", "-e", help="Open config file in $EDITOR"),
     reset: bool = typer.Option(
         False, "--reset", "-r", help="Reset to default configuration"
+    ),
+    set_value: Optional[str] = typer.Option(
+        None,
+        "--set",
+        help="Set a config value (e.g. --set video.output_dir=~/Videos)",
+        metavar="KEY=VALUE",
     ),
     verbose: bool = typer.Option(
         False, "--verbose", "-v", help="Enable verbose output"
@@ -221,46 +227,110 @@ def config(
 ):
     """
     Manage configuration settings.
+
+    Examples:
+      spatelier utils config --show
+      spatelier utils config --set video.output_dir=~/Videos
+      spatelier utils config --set video.quality=720p
+      spatelier utils config --set audio.bitrate=256
+      spatelier utils config --edit
     """
-    config = Config()
-    logger = get_logger("utils-config", verbose=verbose)
+    import os
+    import subprocess
+
+    import yaml
+
+    _default_cfg = Config()
+    get_logger("utils-config", verbose=verbose)
+    config_path = _default_cfg.get_default_config_path()
+    cfg = Config.load_from_file(config_path) if config_path.exists() else _default_cfg
 
     try:
-        if show:
-            # Show current configuration
-            table = Table(title="Current Configuration")
-            table.add_column("Setting", style="cyan")
-            table.add_column("Value", style="magenta")
+        if set_value:
+            if "=" not in set_value:
+                console.print(
+                    Panel(
+                        "[red]✗[/red] Invalid format. Use KEY=VALUE, e.g. --set video.output_dir=~/Videos",
+                        title="Invalid Argument",
+                        border_style="red",
+                    )
+                )
+                raise typer.Exit(1)
 
-            table.add_row("Video Format", config.video.default_format)
-            table.add_row("Video Quality", config.video.quality)
-            table.add_row("Video Output Dir", str(config.video.output_dir))
-            table.add_row("Audio Format", config.audio.default_format)
-            table.add_row("Audio Bitrate", str(config.audio.bitrate))
-            table.add_row("Audio Output Dir", str(config.audio.output_dir))
-            table.add_row("Log Level", config.log_level)
+            raw_key, raw_val = set_value.split("=", 1)
+            key_parts = raw_key.strip().split(".")
 
-            console.print(table)
+            # Load existing config dict (YAML) or start from defaults
+            if config_path.exists():
+                with open(config_path) as f:
+                    data = yaml.safe_load(f) or {}
+            else:
+                data = {}
 
-        elif edit:
-            # Edit configuration file
-            config_path = config.get_default_config_path()
+            # Navigate/create the nested dict and set the leaf value
+            node = data
+            for part in key_parts[:-1]:
+                node = node.setdefault(part, {})
+
+            leaf_key = key_parts[-1]
+            # Coerce to int if it looks like one, expand ~ in paths
+            value: object
+            if raw_val.lstrip("-").isdigit():
+                value = int(raw_val)
+            elif raw_val.lower() in ("true", "false"):
+                value = raw_val.lower() == "true"
+            elif raw_val.startswith("~"):
+                value = str(Path(raw_val).expanduser())
+            elif raw_val.lower() == "null" or raw_val == "":
+                value = None
+            else:
+                value = raw_val
+            node[leaf_key] = value
+
+            # Write back
+            config_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(config_path, "w") as f:
+                yaml.dump(data, f, default_flow_style=False, indent=2)
+
             console.print(
                 Panel(
-                    f"[yellow]⚠[/yellow] Configuration editing not yet implemented.\n"
-                    f"Config file: {config_path}",
-                    title="Not Implemented",
-                    border_style="yellow",
+                    f"[green]✓[/green] Set [cyan]{raw_key}[/cyan] = [magenta]{value}[/magenta]\n"
+                    f"Config: {config_path}",
+                    title="Config Updated",
+                    border_style="green",
                 )
             )
 
+        elif show:
+            table = Table(title="Current Configuration")
+            table.add_column("Setting", style="cyan")
+            table.add_column("Value", style="magenta")
+            table.add_column("Env Override", style="yellow", no_wrap=True)
+
+            def env(var: str) -> str:
+                v = os.getenv(var)
+                return f"{var}={v}" if v else ""
+
+            table.add_row("video.output_dir", str(cfg.video.output_dir), env("SPATELIER_OUTPUT"))
+            table.add_row("video.quality", cfg.video.quality, env("SPATELIER_QUALITY"))
+            table.add_row("video.default_format", cfg.video.default_format, env("SPATELIER_FORMAT"))
+            table.add_row("audio.output_dir", str(cfg.audio.output_dir), env("SPATELIER_OUTPUT"))
+            table.add_row("audio.default_format", cfg.audio.default_format, "")
+            table.add_row("audio.bitrate", str(cfg.audio.bitrate), env("SPATELIER_BITRATE"))
+            table.add_row("log_level", cfg.log_level, env("SPATELIER_LOG_LEVEL"))
+            console.print(table)
+            console.print(f"\n[dim]Config file: {config_path}[/dim]")
+
+        elif edit:
+            cfg.ensure_default_config()
+            editor = os.getenv("VISUAL") or os.getenv("EDITOR") or "nano"
+            console.print(f"Opening [cyan]{config_path}[/cyan] in [bold]{editor}[/bold]...")
+            subprocess.call([editor, str(config_path)])
+
         elif reset:
-            # Reset configuration
-            config_path = config.get_default_config_path()
             if config_path.exists():
                 config_path.unlink()
-
-            config.ensure_default_config()
+            cfg.ensure_default_config()
             console.print(
                 Panel(
                     f"[green]✓[/green] Configuration reset to defaults\n"
@@ -270,12 +340,17 @@ def config(
                 )
             )
 
+        else:
+            console.print("[dim]Use --show, --set KEY=VALUE, --edit, or --reset[/dim]")
+            console.print("[dim]Run with --help for examples[/dim]")
+
+    except typer.Exit:
+        raise
     except Exception as e:
-        logger.error(f"Configuration management failed: {e}")
         console.print(
             Panel(
-                f"[red]✗[/red] Configuration management failed: {str(e)}",
-                title="Error",
+                f"[red]✗[/red] {str(e)}",
+                title="Config Error",
                 border_style="red",
             )
         )

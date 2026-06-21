@@ -50,7 +50,15 @@ def download(
     transcribe: bool = typer.Option(
         False,
         "--transcribe/--no-transcribe",
-        help="Enable automatic transcription (use download-enhanced for transcription by default)",
+        help="Transcribe audio and embed subtitles after download",
+    ),
+    transcription_model: str = typer.Option(
+        "small",
+        "--transcription-model",
+        help="Whisper model size: tiny, base, small, medium, large",
+    ),
+    transcription_language: str = typer.Option(
+        "en", "--transcription-language", help="Language code for transcription"
     ),
     verbose: bool = typer.Option(
         False, "--verbose", "-v", help="Enable verbose output"
@@ -59,8 +67,8 @@ def download(
     """
     Download video from URL.
 
-    Supports YouTube channels, playlists, single videos, and other popular video platforms.
-    Automatically detects channel URLs and converts them to playlist downloads.
+    Supports single videos, playlists, and channels — auto-detected from the URL.
+    Add --transcribe to automatically generate and embed subtitles after download.
     """
     # Lazy import - only import when command is actually called
     from spatelier.core.service_factory import ServiceFactory
@@ -157,6 +165,8 @@ def download(
                         transcribe_ok = services.transcribe_video_use_case.execute(
                             video_path=video_file,
                             media_file_id=media_file_id,
+                            language=transcription_language,
+                            model_size=transcription_model,
                             embed_subtitles=True,
                         )
                         if transcribe_ok:
@@ -218,6 +228,8 @@ def download(
                     transcribe_ok = services.transcribe_video_use_case.execute(
                         video_path=Path(result.output_path),
                         media_file_id=media_file_id,
+                        language=transcription_language,
+                        model_size=transcription_model,
                         embed_subtitles=True,
                     )
                     if not transcribe_ok:
@@ -249,296 +261,6 @@ def download(
                 raise typer.Exit(1)
 
 
-@app.command()
-@handle_errors(context="enhanced video download", verbose=True)
-@time_operation(verbose=True)
-def download_enhanced(
-    url: str = typer.Argument(..., help="URL to download video from"),
-    output: Optional[Path] = typer.Option(
-        None, "--output", "-o", help="Output file path"
-    ),
-    quality: str = typer.Option("best", "--quality", "-q", help="Video quality"),
-    format: str = typer.Option("mp4", "--format", "-f", help="Output format"),
-    max_videos: int = typer.Option(
-        10,
-        "--max-videos",
-        "-m",
-        help="Maximum number of videos to download (for channels/playlists)",
-    ),
-    transcribe: bool = typer.Option(
-        True,
-        "--transcribe/--no-transcribe",
-        help="Enable/disable automatic transcription",
-    ),
-    transcription_model: str = typer.Option(
-        "small",
-        "--transcription-model",
-        help="Whisper model size (tiny, base, small, medium, large)",
-    ),
-    transcription_language: str = typer.Option(
-        "en", "--transcription-language", help="Language code for transcription"
-    ),
-    use_fallback: bool = typer.Option(
-        True, "--fallback/--no-fallback", help="Enable/disable fallback URL extraction"
-    ),
-    verbose: bool = typer.Option(
-        False, "--verbose", "-v", help="Enable verbose output"
-    ),
-):
-    """
-    Download video with automatic transcription and fallback support.
-
-    Enhanced download with:
-    - Automatic transcription using OpenAI Whisper
-    - Fallback URL extraction when yt-dlp fails
-    - Analytics and storage in MongoDB
-
-    Supports YouTube, Vimeo, and other popular video platforms.
-    """
-    # Lazy import - only import when command is actually called
-    from spatelier.core.service_factory import ServiceFactory
-
-    config = Config()
-    logger = get_logger("video-download-enhanced", verbose=verbose)
-
-    with ServiceFactory(config, verbose=verbose) as services:
-        processed_url = url
-        is_channel = False
-        is_playlist = False
-
-        if "youtube.com" in url:
-            if "/playlist" in url or "list=" in url:
-                is_playlist = True
-            if "/@" in url and "/videos" not in url:
-                processed_url = f"{url.rstrip('/')}/videos"
-                is_channel = True
-            elif "/channel/" in url and "/videos" not in url:
-                processed_url = f"{url.rstrip('/')}/videos"
-                is_channel = True
-            elif "/videos" in url:
-                is_channel = True
-
-        if is_channel:
-            logger.info(
-                f"Detected channel URL, converting to playlist: {processed_url}"
-            )
-            console.print(
-                "[yellow]📺 Channel detected![/yellow] Converting to playlist download..."
-            )
-            download_result = services.download_playlist_use_case.execute(
-                url=processed_url,
-                output_path=output,
-                quality=quality,
-                format=format,
-                max_videos=max_videos,
-            )
-        elif is_playlist:
-            logger.info(f"Detected playlist URL: {processed_url}")
-            console.print(
-                "[yellow]📼 Playlist detected![/yellow] Downloading playlist..."
-            )
-            download_result = services.download_playlist_use_case.execute(
-                url=processed_url,
-                output_path=output,
-                quality=quality,
-                format=format,
-                max_videos=max_videos,
-            )
-        else:
-            # First download the video
-            download_result = services.download_video_use_case.execute(
-                url=processed_url,
-                output_path=output,
-                quality=quality,
-                format=format,
-            )
-
-        if not download_result.is_successful():
-            console.print(
-                Panel(
-                    f"[red]✗[/red] {download_result.message}\n\n[dim]Run with --verbose for debug output[/dim]",
-                    title="Download Failed",
-                    border_style="red",
-                )
-            )
-            raise typer.Exit(1)
-
-        if transcribe and download_result.output_path:
-            if is_channel or is_playlist:
-                playlist_dir = Path(download_result.output_path)
-                video_files = [
-                    file
-                    for ext in config.video_extensions
-                    for file in playlist_dir.rglob(f"*{ext}")
-                ]
-                if max_videos and len(video_files) > max_videos:
-                    video_files = sorted(
-                        video_files,
-                        key=lambda path: path.stat().st_mtime,
-                        reverse=True,
-                    )[:max_videos]
-                transcribed = 0
-                embedded = 0
-                for video_file in sorted(video_files):
-                    if not video_file.is_file():
-                        continue
-                    media_record = services.repositories.media.get_by_file_path(
-                        str(video_file)
-                    )
-                    media_file_id = media_record.id if media_record else None
-                    transcribe_ok = services.transcribe_video_use_case.execute(
-                        video_path=video_file,
-                        media_file_id=media_file_id,
-                        language=transcription_language,
-                        model_size=transcription_model,
-                        embed_subtitles=True,
-                    )
-                    if transcribe_ok:
-                        transcribed += 1
-                        embedded += 1
-                    else:
-                        console.print(
-                            Panel(
-                                f"[yellow]![/yellow] Transcription failed: {video_file.name}",
-                                title="Warning",
-                                border_style="yellow",
-                            )
-                        )
-                result = download_result
-                result.message += f" (transcribed {transcribed}/{len(video_files)})"
-            else:
-                media_file_id = download_result.metadata.get("media_file_id")
-                transcribe_result = services.transcribe_video_use_case.execute(
-                    video_path=Path(download_result.output_path),
-                    media_file_id=media_file_id,
-                    language=transcription_language,
-                    model_size=transcription_model,
-                    embed_subtitles=True,
-                )
-
-                if transcribe_result:
-                    result = download_result
-                    result.message += " (with transcription and subtitles)"
-                else:
-                    result = download_result
-                    result.add_warning(
-                        "Transcription completed but subtitle embedding failed"
-                    )
-        else:
-            result = download_result
-
-        if result.success:
-            method = (
-                result.metadata.get("download_method", "yt-dlp")
-                if result.metadata
-                else "yt-dlp"
-            )
-            console.print(
-                Panel(
-                    f"[green]✓[/green] Video downloaded successfully!\n"
-                    f"Output: {result.output_path}\n"
-                    f"Method: {method}",
-                    title="Success",
-                    border_style="green",
-                )
-            )
-        else:
-            console.print(
-                Panel(
-                    f"[red]✗[/red] {result.message}\n\n[dim]Run with --verbose for debug output[/dim]",
-                    title="Download Failed",
-                    border_style="red",
-                )
-            )
-            raise typer.Exit(1)
-
-
-@app.command()
-def download_playlist(
-    url: str = typer.Argument(..., help="Playlist URL to download"),
-    output: Optional[Path] = typer.Option(
-        None, "--output", "-o", help="Output directory (will create playlist folder)"
-    ),
-    quality: str = typer.Option("best", "--quality", "-q", help="Video quality"),
-    format: str = typer.Option("mp4", "--format", "-f", help="Output format"),
-    use_fallback: bool = typer.Option(
-        True, "--fallback/--no-fallback", help="Enable/disable fallback URL extraction"
-    ),
-    continue_download: bool = typer.Option(
-        True,
-        "--continue/--no-continue",
-        help="Continue from failed/incomplete downloads",
-    ),
-    verbose: bool = typer.Option(
-        False, "--verbose", "-v", help="Enable verbose output"
-    ),
-):
-    """
-    Download playlist with fallback support.
-
-    Enhanced playlist download with:
-    - Automatic folder creation with playlist name and ID
-    - Fallback URL extraction when yt-dlp fails
-    - Analytics and storage in MongoDB
-
-    Supports YouTube playlists and other platforms.
-    """
-    # Lazy import - only import when command is actually called
-    from spatelier.core.service_factory import ServiceFactory
-
-    config = Config()
-
-    with ServiceFactory(config, verbose=verbose) as services:
-        # First download the playlist
-        playlist_result = services.download_playlist_use_case.execute(
-            url=url, output_path=output, quality=quality, format=format
-        )
-
-        if not playlist_result.is_successful():
-            console.print(
-                Panel(
-                    f"[red]✗[/red] Playlist download failed: {playlist_result.message}",
-                    title="Error",
-                    border_style="red",
-                )
-            )
-            raise typer.Exit(1)
-
-        # Build result message
-        metadata = playlist_result.metadata or {}
-        message = f"Playlist downloaded successfully: {metadata.get('total_videos', 0)} videos"
-
-        result = ProcessingResult.success_result(
-            message=message,
-            output_path=playlist_result.output_path,
-            metadata=playlist_result.metadata,
-        )
-
-        if result.is_successful():
-            metadata = result.metadata or {}
-            transcription_status = (
-                "Enabled" if metadata.get("transcription_enabled") else "Disabled"
-            )
-            console.print(
-                Panel(
-                    f"[green]✓[/green] Playlist downloaded successfully!\n"
-                    f"Output: {result.output_path}\n"
-                    f"Playlist: {metadata.get('playlist_title', 'Unknown')}\n"
-                    f"Videos: {metadata.get('successful_downloads', 0)}/{metadata.get('total_videos', 0)}\n"
-                    f"Transcription: {transcription_status}",
-                    title="Success",
-                    border_style="green",
-                )
-            )
-        else:
-            console.print(
-                Panel(
-                    f"[red]✗[/red] Playlist download failed: {result.message}",
-                    title="Error",
-                    border_style="red",
-                )
-            )
-            raise typer.Exit(1)
 
 
 @app.command()

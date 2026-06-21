@@ -226,6 +226,34 @@ class Config(BaseModel):
 
     model_config = {"arbitrary_types_allowed": True}
 
+    @model_validator(mode="after")
+    def apply_env_overrides(self) -> "Config":
+        """Apply SPATELIER_* environment variable overrides after normal construction.
+
+        Env vars let users change settings per-session without editing the config file.
+        They override config file values but are themselves overridden by explicit CLI flags.
+
+        Supported vars:
+            SPATELIER_OUTPUT   - output directory for video and audio
+            SPATELIER_QUALITY  - video quality (best, 720p, 1080p, ...)
+            SPATELIER_FORMAT   - video format (mp4, mkv, webm, ...)
+            SPATELIER_BITRATE  - audio bitrate (kbps, integer)
+        """
+        if output := os.getenv("SPATELIER_OUTPUT"):
+            output_path = Path(output).expanduser()
+            self.video = self.video.model_copy(update={"output_dir": output_path})
+            self.audio = self.audio.model_copy(update={"output_dir": output_path})
+        if quality := os.getenv("SPATELIER_QUALITY"):
+            self.video = self.video.model_copy(update={"quality": quality})
+        if fmt := os.getenv("SPATELIER_FORMAT"):
+            self.video = self.video.model_copy(update={"default_format": fmt})
+        if bitrate_str := os.getenv("SPATELIER_BITRATE"):
+            try:
+                self.audio = self.audio.model_copy(update={"bitrate": int(bitrate_str)})
+            except ValueError:
+                pass
+        return self
+
     @field_validator("log_level")
     @classmethod
     def validate_log_level(cls, v):
