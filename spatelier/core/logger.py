@@ -4,6 +4,7 @@ Logging configuration and utilities.
 This module provides centralized logging configuration using loguru.
 """
 
+import logging
 import sys
 from pathlib import Path
 from typing import Optional
@@ -32,8 +33,13 @@ def get_logger(
     # Remove default handler
     logger.remove()
 
-    # Set log level
-    log_level = "DEBUG" if verbose else level
+    # Set log level — WARNING by default so internal logs don't pollute normal output
+    log_level = "DEBUG" if verbose else "WARNING"
+
+    # Keep SQLAlchemy and other stdlib loggers quiet unless explicitly verbose
+    stdlib_level = logging.DEBUG if verbose else logging.WARNING
+    logging.getLogger("sqlalchemy").setLevel(stdlib_level)
+    logging.getLogger("alembic").setLevel(stdlib_level)
 
     # Console handler with colors
     logger.add(

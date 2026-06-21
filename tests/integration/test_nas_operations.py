@@ -341,12 +341,14 @@ class TestNASIntegration:
         assert success == False
         assert not nas_dest.exists()
 
-        # Test with invalid destination (should fail gracefully)
+        # Test with invalid destination (should fail gracefully).
+        # Use a path inside an existing FILE — guaranteed to fail even as root
+        # because you can't mkdir inside a file.
         temp_file = Path(tempfile.mktemp(suffix=".mp4"))
         temp_file.write_bytes(b"test content")
 
         try:
-            invalid_dest = Path("/invalid/path/that/does/not/exist/test.mp4")
+            invalid_dest = Path("/etc/passwd/subdir/test.mp4")
             success = downloader._move_file_to_final_destination(
                 temp_file, invalid_dest
             )

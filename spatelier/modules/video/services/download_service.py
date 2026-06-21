@@ -86,24 +86,26 @@ class VideoDownloadService(BaseService, IVideoDownloadService):
         Returns:
             ProcessingResult with download details
         """
-        # Analytics tracking will be handled by decorator/middleware
+        # Reset per-request error state
+        self._last_download_error: Optional[str] = None
 
-        # Extract metadata before download
-        source_metadata = {}
-        if "youtube.com" in url or "youtu.be" in url:
-            source_metadata = self.metadata_extractor.extract_youtube_metadata(url)
-            self.logger.info(
-                f"Extracted YouTube metadata: {source_metadata.get('title', 'Unknown')}"
-            )
+        # Use pre-fetched metadata from use case if available, otherwise fetch now.
+        source_metadata = kwargs.pop("source_metadata", None)
+        if source_metadata is None:
+            source_metadata = {}
+            if "youtube.com" in url or "youtu.be" in url:
+                source_metadata = self.metadata_extractor.extract_youtube_metadata(url)
+                self.logger.info(
+                    f"Extracted YouTube metadata: {source_metadata.get('title', 'Unknown')}"
+                )
 
         try:
             # Determine output path
             output_file = None
             if output_path is None:
-                from spatelier.core.config import get_default_data_dir
-
-                repo_root = get_default_data_dir().parent
-                output_dir = self.config.video.output_dir or (repo_root / "downloads")
+                # Default to current working directory, matching Unix tool conventions.
+                # Users can set config.video.output_dir for a persistent override.
+                output_dir = self.config.video.output_dir or Path.cwd()
             else:
                 output_path = Path(output_path)
                 if output_path.suffix:
@@ -248,13 +250,14 @@ class VideoDownloadService(BaseService, IVideoDownloadService):
                         metadata=metadata,
                     )
             else:
-                metadata = {"error": "Download failed", "source_url": url}
+                reason = self._last_download_error or "No video file produced after download"
+                metadata = {"error": reason, "source_url": url}
                 if job_id:
                     metadata["job_id"] = job_id
                 return ProcessingResult(
                     success=False,
-                    message="Video download failed",
-                    errors=["No video file found after download"],
+                    message=reason,
+                    errors=[reason],
                     metadata=metadata,
                 )
 
@@ -309,6 +312,8 @@ class VideoDownloadService(BaseService, IVideoDownloadService):
             return result
         except Exception as e:
             self.logger.error(f"yt-dlp download failed: {e}")
+            # Store so download_video() can surface the real reason to the user
+            self._last_download_error = str(e)
             return self._validate_fallback_file(output_path, url)
 
 

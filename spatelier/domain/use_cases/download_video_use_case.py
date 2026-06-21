@@ -73,11 +73,13 @@ class DownloadVideoUseCase:
         # Create domain model
         video = Video(url=url)
 
-        # Extract metadata
+        # Extract metadata once here and pass it to the download service to avoid
+        # a second identical network call inside download_service.download_video().
+        source_metadata: dict = {}
         if self.metadata_service:
-            metadata = self.metadata_service.extract_video_metadata(url)
-            video.title = metadata.get("title")
-            video.duration_seconds = metadata.get("duration")
+            source_metadata = self.metadata_service.extract_video_metadata(url)
+            video.title = source_metadata.get("title")
+            video.duration_seconds = source_metadata.get("duration")
 
         # Create processing job if requested
         job_id = None
@@ -92,6 +94,9 @@ class DownloadVideoUseCase:
                 kwargs["job_id"] = job_id  # Pass job_id to download service
                 # Mark job as processing
                 self.job_manager.update_job_status(job_id, "processing")
+
+        # Pass pre-fetched metadata so the service doesn't re-fetch it
+        kwargs["source_metadata"] = source_metadata
 
         # Download video
         result = self.download_service.download_video(url, output_path, **kwargs)

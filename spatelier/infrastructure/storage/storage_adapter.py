@@ -188,6 +188,10 @@ class NASStorageAdapter(StorageAdapter):
 
     def move_file(self, source_file: Path, dest_file: Path) -> bool:
         """Move file from local temp to NAS destination."""
+        if not source_file.exists():
+            if self.logger:
+                self.logger.error(f"Source file does not exist: {source_file}")
+            return False
         try:
             import shutil
 

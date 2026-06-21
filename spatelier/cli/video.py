@@ -115,8 +115,8 @@ def download(
             else:
                 console.print(
                     Panel(
-                        f"[red]✗[/red] Channel download failed: {result.message}",
-                        title="Error",
+                        f"[red]✗[/red] {result.message}\n\n[dim]Run with --verbose for debug output[/dim]",
+                        title="Channel Download Failed",
                         border_style="red",
                     )
                 )
@@ -192,8 +192,8 @@ def download(
             else:
                 console.print(
                     Panel(
-                        f"[red]✗[/red] Playlist download failed: {result.message}",
-                        title="Error",
+                        f"[red]✗[/red] {result.message}\n\n[dim]Run with --verbose for debug output[/dim]",
+                        title="Playlist Download Failed",
                         border_style="red",
                     )
                 )
@@ -240,8 +240,9 @@ def download(
             else:
                 console.print(
                     Panel(
-                        f"[red]✗[/red] Download failed: {result.message}",
-                        title="Error",
+                        f"[red]✗[/red] {result.message}\n\n"
+                        f"[dim]Run with --verbose for debug output[/dim]",
+                        title="Download Failed",
                         border_style="red",
                     )
                 )
@@ -355,8 +356,8 @@ def download_enhanced(
         if not download_result.is_successful():
             console.print(
                 Panel(
-                    f"[red]✗[/red] Download failed: {download_result.message}",
-                    title="Error",
+                    f"[red]✗[/red] {download_result.message}\n\n[dim]Run with --verbose for debug output[/dim]",
+                    title="Download Failed",
                     border_style="red",
                 )
             )
@@ -444,8 +445,8 @@ def download_enhanced(
         else:
             console.print(
                 Panel(
-                    f"[red]✗[/red] Download failed: {result.message}",
-                    title="Error",
+                    f"[red]✗[/red] {result.message}\n\n[dim]Run with --verbose for debug output[/dim]",
+                    title="Download Failed",
                     border_style="red",
                 )
             )

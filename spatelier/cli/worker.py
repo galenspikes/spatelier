@@ -272,7 +272,7 @@ def restart(
 @time_operation(verbose=True)
 def list_jobs(
     format: str = typer.Option(
-        "json", "--format", "-f", help="Output format: json, table, summary"
+        "table", "--format", "-f", help="Output format: table, json, summary"
     ),
     verbose: bool = typer.Option(
         False, "--verbose", "-v", help="Enable verbose output"
