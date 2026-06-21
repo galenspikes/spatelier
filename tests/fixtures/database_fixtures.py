@@ -45,7 +45,6 @@ def test_config(temp_db_path: Path) -> Config:
     """Create test configuration with temporary database."""
     config = Config()
     config.database.sqlite_path = str(temp_db_path)
-    config.mongodb_database = "test_spatelier"
     return config
 
 

@@ -34,7 +34,6 @@ class TestNASIntegration:
         config.video.output_dir = nas_test_path / "videos"
         config.audio.output_dir = nas_test_path / "audio"
         config.database.sqlite_path = Path(nas_test_path / "test.db")
-        config.database.mongodb_database = "test_spatelier_nas"
         return config
 
     @pytest.fixture

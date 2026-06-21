@@ -15,9 +15,7 @@ def create_mock_database_manager():
     """Create a mock database manager."""
     mock_manager = Mock()
     mock_manager.connect_sqlite = Mock()
-    mock_manager.connect_mongodb = Mock()
     mock_manager.get_sqlite_session = Mock()
-    mock_manager.get_mongodb_client = Mock()
     mock_manager.close_connections = Mock()
     return mock_manager
 

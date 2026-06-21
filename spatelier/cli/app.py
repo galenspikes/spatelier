@@ -11,10 +11,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
-from spatelier.core.config import Config
-from spatelier.core.interactive_cli import run_interactive_cli
 from spatelier.core.logger import get_logger
-from spatelier.core.package_updater import PackageUpdater
 
 from . import audio, cli_analytics, cli_utils, files, update, video, worker
 
@@ -36,23 +33,6 @@ app.add_typer(
 app.add_typer(worker.app, name="worker", help="Background job worker management")
 app.add_typer(update.app, name="update", help="Package update management")
 app.add_typer(files.app, name="files", help="File tracking and management")
-
-
-# Add interactive mode command
-@app.command()
-def interactive(
-    verbose: bool = typer.Option(
-        False, "--verbose", "-v", help="Enable verbose logging"
-    )
-):
-    """
-    🎮 Launch interactive mode with guided workflows.
-
-    Interactive mode provides a user-friendly interface for common operations
-    like downloading videos, processing audio, and viewing analytics.
-    """
-    config = Config()
-    run_interactive_cli(config, verbose)
 
 
 # Global options
@@ -116,21 +96,11 @@ def main(
         help="Show version information",
     ),
     verbose: bool = typer.Option(False, "--verbose", help="Enable verbose logging"),
-    config_file: str = typer.Option(
-        None, "--config", "-c", help="Path to configuration file"
-    ),
 ):
     """
     Spatelier - Personal tool library for video and music file handling.
-
-    A modular, extensible tool library built with modern Python architecture.
     """
-    # Initialize logger
     get_logger(verbose=verbose)
-
-    # Start automatic background updates (opt-in via auto_update=True)
-    # Note: Auto-updates are disabled by default - use explicit update commands
-    # To enable: PackageUpdater(config, verbose=verbose, auto_update=True).start_background_update()
 
 
 # Entry point function for setuptools

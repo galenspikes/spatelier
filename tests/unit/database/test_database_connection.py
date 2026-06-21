@@ -11,7 +11,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from spatelier.core.config import Config
-from spatelier.database.connection import DatabaseConfig, DatabaseManager
+from spatelier.database.connection import DatabaseManager
 from spatelier.database.models import Base
 
 
@@ -24,7 +24,6 @@ def test_database_manager_initialization():
     assert db_manager.verbose == False
     assert db_manager.sqlite_engine is None
     assert db_manager.sqlite_session is None
-    assert db_manager.mongo_client is None
 
 
 def test_database_manager_sqlite_connection():
@@ -60,18 +59,6 @@ def test_database_manager_context_manager():
     # Connections should be closed after context exit
     assert db_manager.sqlite_session is None
 
-
-def test_database_config_initialization():
-    """Test DatabaseConfig initialization."""
-    config = Config()
-    db_config = DatabaseConfig(config)
-
-    assert db_config.config == config
-    assert db_config.sqlite_path is not None
-    assert db_config.mongo_connection_string == "mongodb://localhost:27017"
-    assert db_config.mongo_database == "spatelier"
-    assert db_config.enable_analytics == True
-    assert db_config.retention_days == 365
 
 
 def test_database_manager_get_session():

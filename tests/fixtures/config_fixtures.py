@@ -65,7 +65,6 @@ def test_config() -> Config:
     config.transcription.default_language = "en"
     config.audio.output_dir = Path("/tmp/test_audio")
     config.database.sqlite_path = Path("/tmp/test.db")
-    config.database.mongodb_database = "test_spatelier"
     config.log_level = "DEBUG"
     return config
 
@@ -88,7 +87,6 @@ def production_config() -> Config:
     config.transcription.default_language = "en"
     config.audio.default_format = "mp3"
     config.database.sqlite_path = Path("/var/lib/spatelier/spatelier.db")
-    config.database.mongodb_database = "spatelier_prod"
     config.log_level = "INFO"
     return config
 
@@ -102,7 +100,6 @@ def env_vars():
         "SPATELIER_VIDEO_TRANSCRIBE": "true",
         "SPATELIER_VIDEO_MODEL": "base",
         "SPATELIER_DATABASE_PATH": "/tmp/env_test.db",
-        "SPATELIER_MONGODB_DATABASE": "test_env",
     }
 
     with patch.dict(os.environ, env):
@@ -139,9 +136,6 @@ def config_factory():
         # Apply database settings
         if "db_path" in kwargs:
             config.database.sqlite_path = Path(kwargs["db_path"])
-        if "mongodb_db" in kwargs:
-            config.database.mongodb_database = kwargs["mongodb_db"]
-
         # Apply logging settings
         if "log_level" in kwargs:
             config.log_level = kwargs["log_level"]

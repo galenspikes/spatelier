@@ -64,10 +64,7 @@ class DatabaseServiceFactory:
             RepositoryContainer with all repositories
         """
         if self._repositories is None:
-            # Connect to databases
             self.db_manager.connect_sqlite()
-            if self.config.database.enable_mongodb:
-                self.db_manager.connect_mongodb()
 
             # Create repository container
             session = self.db_manager.get_sqlite_session()

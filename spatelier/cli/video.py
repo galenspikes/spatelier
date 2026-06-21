@@ -16,7 +16,7 @@ from spatelier.core.base import ProcessingResult
 from spatelier.core.config import Config
 from spatelier.core.decorators import handle_errors, time_operation
 from spatelier.core.logger import get_logger
-from spatelier.core.progress import show_download_progress, track_progress
+from spatelier.core.progress import track_progress
 
 # Create the video CLI app
 app = typer.Typer(

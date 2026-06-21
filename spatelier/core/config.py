@@ -133,9 +133,6 @@ class DatabaseConfig(BaseModel):
     sqlite_path: Path = Field(
         default_factory=lambda: get_default_data_dir() / "spatelier.db"
     )
-    mongodb_url: str = "mongodb://localhost:27017"
-    mongodb_database: str = "spatelier"
-    enable_mongodb: bool = False
     retention_days: int = 365
     enable_analytics: bool = True
 

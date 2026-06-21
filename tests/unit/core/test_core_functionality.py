@@ -70,8 +70,6 @@ def test_database_config_defaults():
     config = DatabaseConfig()
 
     assert "spatelier.db" in str(config.sqlite_path)
-    assert config.mongodb_url == "mongodb://localhost:27017"
-    assert config.mongodb_database == "spatelier"
     assert config.retention_days == 365
     assert config.enable_analytics == True
 
