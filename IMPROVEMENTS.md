@@ -490,19 +490,41 @@ Good: Comprehensive test suite exists
 
 ---
 
+## Confirmed Bugs from Smoke Testing
+
+The following bugs were confirmed by actually running the app. See [SMOKE_TEST.md](SMOKE_TEST.md) for full details.
+
+| # | Bug | File | Effort |
+|---|-----|------|--------|
+| 1 | INFO logs printed to stderr on every command (no `--verbose` needed) | `core/logger.py:36` | 1 line |
+| 2 | `worker list-jobs` defaults to JSON output, not table | `cli/worker.py:274` | 1 line |
+| 3 | YouTube metadata fetched twice per download (double network call) | `download_video_use_case.py:78` + `download_service.py:94` | 30 min |
+| 4 | Download error message is generic (`"Video download failed"`) with no actionable info | `download_service.py` | ~10 lines |
+| 5 | `storage_adapter.move_file()` creates directories unconditionally before checking source exists | `storage/storage_adapter.py:192` | 5 lines |
+| 6 | `pytest` binary fails with import error; only `python -m pytest` works | `pytest.ini` | 1 line |
+
+---
+
 ## Implementation Roadmap
 
-### v0.5.0 (High Impact, ~2-4 weeks)
-- [x] Fix default output location → current directory
-- [x] Remove redundant download commands (`download-enhanced`, `download-playlist`)
-- [x] Add environment variable support
-- [x] Improve error messages
+### v0.4.3 (Quick Bugs, ~1-2 days)
+- [ ] Fix INFO log bleeding (Bug 1) — `core/logger.py:36`
+- [ ] Fix `worker list-jobs` default format (Bug 2) — `cli/worker.py:274`
+- [ ] Fix `storage_adapter.move_file()` directory creation (Bug 5) — `storage/storage_adapter.py`
+- [ ] Fix `pytest` path resolution (Bug 6) — `pytest.ini`
+
+### v0.5.0 (High Impact UX, ~1-2 weeks)
+- [ ] Fix default output location → current directory (`download_service.py:106`)
+- [ ] Fix generic error messages (Bug 4) — surface yt-dlp errors to user
+- [ ] Fix double metadata extraction (Bug 3)
+- [ ] Add environment variable support (`SPATELIER_OUTPUT`, `SPATELIER_QUALITY`)
 
 ### v0.6.0 (Medium Impact, ~4-6 weeks)
+- [ ] Remove redundant download commands (`download-enhanced`, `download-playlist`)
 - [ ] Config editing UI (`spatelier config set`)
 - [ ] Profile system
 - [ ] Simplify ServiceFactory
-- [ ] Better transcription workflow
+- [ ] Better transcription workflow (separate step, not bundled into download)
 
 ### v0.7.0+ (Future)
 - [ ] TUI mode
@@ -516,11 +538,15 @@ Good: Comprehensive test suite exists
 | Issue | Severity | Fix | Effort | Impact |
 |-------|----------|-----|--------|--------|
 | Default output not in cwd | 🔴 HIGH | Change default to `Path.cwd()` | 1 day | Critical UX improvement |
+| INFO logs on every command | 🔴 HIGH | Default logger to WARNING | 1 line | Every user sees this |
+| Generic download errors | 🔴 HIGH | Surface yt-dlp error to user | 10 lines | Usability |
 | Too many CLI options | 🟠 MEDIUM | Reorganize commands, gate advanced options | 1 week | Cleaner interface |
 | Config is hard to change | 🟠 MEDIUM | Add `spatelier config set` command | 2 days | Better UX |
 | Redundant commands | 🟠 MEDIUM | Merge `download-*` into single `download` | 1 day | Less confusion |
+| Double metadata fetch | 🟠 MEDIUM | Pass metadata through, don't re-fetch | 30 min | 2x faster startup |
+| move_file creates dirs blindly | 🟠 MEDIUM | Check source exists first | 5 lines | Correctness |
 | ServiceFactory complex | 🟡 LOW | Create `Spatelier` facade | 2-3 days | Cleaner code |
-| Error messages unhelpful | 🟡 LOW | Add context-aware messages | 2-3 days | Better debugging |
+| pytest binary broken | 🟡 LOW | Add `pythonpath = .` to pytest.ini | 1 line | Dev ergonomics |
 
 ---
 
